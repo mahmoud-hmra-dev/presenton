@@ -87,11 +87,24 @@ async def generate(text: Optional[str] = Form(None), file: Optional[UploadFile] 
 async def publish(page_ids: List[str], caption: str = Form(...), image_url: str = Form(...)):
     if not FACEBOOK_TOKEN:
         raise HTTPException(status_code=400, detail="FACEBOOK_TOKEN not set")
+
+    all_pages = _get_pages()
     results = []
+
     for pid in page_ids:
+        page_token = next((p["access_token"] for p in all_pages if p["id"] == pid), None)
+        if not page_token:
+            results.append({"page_id": pid, "status": 403, "error": "Page token not found"})
+            continue
+
         resp = requests.post(
             f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
-            data={"url": image_url, "message": caption, "access_token": FACEBOOK_TOKEN},
+            data={"url": image_url, "message": caption, "access_token": page_token},
         )
-        results.append({"page_id": pid, "status": resp.status_code})
+        results.append({
+            "page_id": pid,
+            "status": resp.status_code,
+            "response": resp.json()
+        })
+
     return {"results": results}
