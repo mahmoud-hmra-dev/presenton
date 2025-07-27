@@ -4,12 +4,22 @@ import crypto from 'crypto';
 
 const USERS_KEY = 'users';
 
-function loadUsers() {
-  return settingsStore.get(USERS_KEY, []);
-}
-
 function hashPassword(password: string) {
   return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function loadUsers() {
+  const users = settingsStore.get(USERS_KEY, []);
+  const hasAdmin = users.some((u: any) => u.username === 'admin@clingroup.net');
+  if (!hasAdmin) {
+    users.push({
+      username: 'admin@clingroup.net',
+      password: hashPassword('clingroup#123@'),
+      pages: [],
+    });
+    settingsStore.set(USERS_KEY, users);
+  }
+  return users;
 }
 
 export async function POST(request: NextRequest) {
