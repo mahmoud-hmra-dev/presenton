@@ -5,6 +5,7 @@ from typing import List, Optional
 
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import JSONResponse
 
 from openai import AsyncOpenAI
 
@@ -70,6 +71,13 @@ def _get_pages():
     return [{"id": p["id"], "name": p["name"], "access_token": p.get("access_token")} for p in data]
 
 
+@social_router.get("/pages")
+async def get_pages():
+    """Return available Facebook pages."""
+    pages = _get_pages()
+    return JSONResponse({"pages": pages})
+
+
 @social_router.post("/generate")
 async def generate(text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)):
     if not text and not file:
@@ -84,12 +92,22 @@ async def generate(text: Optional[str] = Form(None), file: Optional[UploadFile] 
 
 
 @social_router.post("/publish")
-async def publish(page_ids: List[str], caption: str = Form(...), image_url: str = Form(...)):
+async def publish(
+    page_ids: List[str] = Form(...),
+    caption: str = Form(...),
+    image_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
     if not FACEBOOK_TOKEN:
         raise HTTPException(status_code=400, detail="FACEBOOK_TOKEN not set")
 
     all_pages = _get_pages()
     results = []
+
+    if not image_url and not file:
+        raise HTTPException(status_code=400, detail="Provide image_url or file")
+
+    file_bytes = await file.read() if file else None
 
     for pid in page_ids:
         page_token = next((p["access_token"] for p in all_pages if p["id"] == pid), None)
@@ -97,10 +115,17 @@ async def publish(page_ids: List[str], caption: str = Form(...), image_url: str 
             results.append({"page_id": pid, "status": 403, "error": "Page token not found"})
             continue
 
-        resp = requests.post(
-            f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
-            data={"url": image_url, "message": caption, "access_token": page_token},
-        )
+        if file_bytes:
+            resp = requests.post(
+                f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
+                data={"message": caption, "access_token": page_token},
+                files={"source": (file.filename, file_bytes, file.content_type or "image/jpeg")},
+            )
+        else:
+            resp = requests.post(
+                f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
+                data={"url": image_url, "message": caption, "access_token": page_token},
+            )
         results.append({
             "page_id": pid,
             "status": resp.status_code,
