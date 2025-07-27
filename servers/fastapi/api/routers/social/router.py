@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from typing import List, Optional
 
 import requests
@@ -17,24 +18,44 @@ FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 
 async def _transcribe_audio(file: UploadFile, client: AsyncOpenAI) -> str:
     data = await file.read()
-    return await client.audio.transcriptions.create(model="whisper-1", file=data, response_format="text")
+    return await client.audio.transcriptions.create(
+        model="whisper-1", file=data, response_format="text"
+    )
+
+
+def extract_json_block(text: str) -> dict:
+    try:
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON object found in LLM response")
+        return json.loads(match.group(0))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse LLM response: {str(e)}")
 
 
 async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
-    system = "You are an AI social media content creator. Your task is to create engaging and SEO-optimized social media content (200-500 characters) and generate a detailed image prompt. Return a JSON object with keys 'content' and 'image_prompt'."
+    system = (
+        "You are an AI social media content creator. "
+        "Your task is to create engaging and SEO-optimized social media content (200-500 characters) "
+        "and generate a detailed image prompt. "
+        "Respond ONLY with a JSON object like {\"content\": \"...\", \"image_prompt\": \"...\"}. "
+        "No explanation. No extra text."
+    )
     resp = await client.chat.completions.create(
         model=OPENAI_MODEL,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": text}],
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": text},
+        ],
     )
     content = resp.choices[0].message.content
-    try:
-        return json.loads(content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to parse LLM response") from e
+    return extract_json_block(content)
 
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
-    resp = await client.images.generate(model=IMAGE_MODEL, prompt=prompt, n=1, size="1024x1024")
+    resp = await client.images.generate(
+        model=IMAGE_MODEL, prompt=prompt, n=1, size="1024x1024"
+    )
     return resp.data[0].url
 
 
