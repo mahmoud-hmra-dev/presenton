@@ -9,12 +9,18 @@ const LoginForm = () => {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (username && password) {
+    if (
+      username === "admin@clingroup.net" &&
+      password === "clingroup#123@"
+    ) {
       dispatch(login({ user: username }));
       router.push("/");
+    } else {
+      setError("Invalid credentials");
     }
   };
 
@@ -37,6 +43,7 @@ const LoginForm = () => {
       <button type="submit" className="bg-blue-500 text-white rounded p-2">
         Login
       </button>
+      {error && <p className="text-red-500">{error}</p>}
     </form>
   );
 };

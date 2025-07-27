@@ -5,7 +5,8 @@ import { setCanChangeKeys, setLLMConfig } from '@/store/slices/userConfig';
 import { Loader2 } from 'lucide-react';
 import { hasValidLLMConfig } from '@/utils/storeHelpers';
 import { usePathname, useRouter } from 'next/navigation';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 export function StoreInitializer({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch();
@@ -13,11 +14,28 @@ export function StoreInitializer({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const route = usePathname();
+  const isLoggedIn = useSelector((state: RootState) => state.auth.isLoggedIn);
 
-  // Fetch user config state
+  // Redirect unauthenticated users to login
   useEffect(() => {
+    if (!isLoggedIn) {
+      if (route !== '/login') {
+        router.push('/login');
+        setLoadingToFalseAfterNavigatingTo('/login');
+      } else {
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    if (route === '/login') {
+      router.push('/');
+      setLoadingToFalseAfterNavigatingTo('/');
+      return;
+    }
+
     fetchUserConfigState();
-  }, []);
+  }, [isLoggedIn, route]);
 
   const setLoadingToFalseAfterNavigatingTo = (pathname: string) => {
     const interval = setInterval(() => {
