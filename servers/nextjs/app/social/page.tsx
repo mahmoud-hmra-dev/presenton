@@ -1,58 +1,168 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Header from "@/app/dashboard/components/Header";
+import Wrapper from "@/components/Wrapper";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import ReactSelect from "react-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface PageInfo { id: string; name: string }
+interface PageInfo {
+  id: string;
+  name: string;
+}
 
 export default function SocialPage() {
   const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [content, setContent] = useState<string | null>(null);
+  const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
 
+  const [manualCaption, setManualCaption] = useState("");
+  const [manualFile, setManualFile] = useState<File | null>(null);
+  const [manualPreview, setManualPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPages = async () => {
+      const res = await fetch("/api/v1/social/pages");
+      if (res.ok) {
+        const data = await res.json();
+        setPages(data.pages || []);
+      }
+    };
+    fetchPages();
+  }, []);
+
   const generate = async () => {
     const form = new FormData();
     if (text) form.append("text", text);
-    if (file) form.append("file", file);
-    const res = await fetch("/api/v1/social/generate", { method: "POST", body: form });
+    const res = await fetch("/api/v1/social/generate", {
+      method: "POST",
+      body: form,
+    });
     if (res.ok) {
       const data = await res.json();
-      setContent(data.content);
+      setCaption(data.content);
       setImageUrl(data.image_url);
       setPages(data.pages || []);
     }
   };
 
-  const publish = async () => {
-    if (!content || !imageUrl) return;
-    const res = await fetch("/api/v1/social/publish", {
-      method: "POST",
-      body: new URLSearchParams({ caption: content, image_url: imageUrl, page_ids: selected.join() }),
-    });
+  const publishAI = async () => {
+    if (!caption || !imageUrl) return;
+    const body = new FormData();
+    body.append("caption", caption);
+    body.append("image_url", imageUrl);
+    selected.forEach((id) => body.append("page_ids", id));
+    const res = await fetch("/api/v1/social/publish", { method: "POST", body });
     if (res.ok) alert("Published");
   };
 
+  const regenerateImage = async () => {
+    if (!caption) return;
+    const form = new FormData();
+    form.append("text", caption);
+    const res = await fetch("/api/v1/social/generate", {
+      method: "POST",
+      body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setImageUrl(data.image_url);
+    }
+  };
+
+  const publishManual = async () => {
+    if (!manualCaption || !manualFile) return;
+    const body = new FormData();
+    body.append("caption", manualCaption);
+    body.append("file", manualFile);
+    selected.forEach((id) => body.append("page_ids", id));
+    const res = await fetch("/api/v1/social/publish", { method: "POST", body });
+    if (res.ok) alert("Published");
+  };
+
+  const onManualFileChange = (file: File | null) => {
+    setManualFile(file);
+    if (file) {
+      setManualPreview(URL.createObjectURL(file));
+    } else {
+      setManualPreview(null);
+    }
+  };
+
   return (
-    <div className="p-4 space-y-4">
-      <h1 className="text-xl font-bold">Social Post Generator</h1>
-      <textarea className="w-full border p-2" placeholder="Enter text" value={text} onChange={e => setText(e.target.value)} />
-      <input type="file" accept="audio/*" onChange={e => setFile(e.target.files?.[0] || null)} />
-      <button className="bg-blue-600 text-white px-4 py-2" onClick={generate}>Generate</button>
-      {content && (
-        <div className="space-y-2">
-          <p>{content}</p>
-          {imageUrl && <img src={imageUrl} alt="generated" className="max-w-sm" />}
+    <div className="min-h-screen bg-[#E9E8F8]">
+      <Header />
+      <Wrapper className="py-10 max-w-2xl">
+        <Tabs defaultValue="ai" className="w-full space-y-6">
+          <TabsList className="w-full flex justify-center mb-4">
+            <TabsTrigger value="ai">AI Generator</TabsTrigger>
+            <TabsTrigger value="manual">Manual</TabsTrigger>
+          </TabsList>
+          <TabsContent value="ai" className="space-y-4">
+            <Textarea
+              placeholder="Enter text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <Button onClick={generate}>Generate</Button>
+            {caption && (
+              <div className="space-y-2">
+                <Textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                />
+                {imageUrl && (
+                  <img src={imageUrl} alt="generated" className="max-w-sm" />
+                )}
+                <Button variant="secondary" onClick={regenerateImage}>
+                  Regenerate Image
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="manual" className="space-y-4">
+            <Textarea
+              placeholder="Caption"
+              value={manualCaption}
+              onChange={(e) => setManualCaption(e.target.value)}
+            />
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => onManualFileChange(e.target.files?.[0] || null)}
+            />
+            {manualPreview && (
+              <img src={manualPreview} alt="preview" className="max-w-sm" />
+            )}
+          </TabsContent>
           {pages.length > 0 && (
-            <select multiple value={selected} onChange={e => setSelected(Array.from(e.target.selectedOptions).map(o => o.value))} className="border p-2 w-full">
-              {pages.map(p => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
+            <ReactSelect
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+              options={pages.map((p) => ({ value: p.id, label: p.name }))}
+              value={pages
+                .filter((p) => selected.includes(p.id))
+                .map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(options) =>
+                setSelected(options.map((o) => o.value as string))
+              }
+            />
           )}
-          {pages.length > 0 && <button className="bg-green-600 text-white px-4 py-2" onClick={publish}>Publish</button>}
-        </div>
-      )}
+          {selected.length > 0 && (
+            <div className="flex gap-4">
+              <Button onClick={publishAI}>Publish AI Post</Button>
+              <Button onClick={publishManual} variant="secondary">
+                Publish Manual Post
+              </Button>
+            </div>
+          )}
+        </Tabs>
+      </Wrapper>
     </div>
   );
 }
