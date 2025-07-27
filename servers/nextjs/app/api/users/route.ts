@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { settingsStore } from '@/app/(presentation-generator)/services/setting-store';
 import crypto from 'crypto';
