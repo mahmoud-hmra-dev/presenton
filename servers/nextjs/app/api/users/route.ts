@@ -43,3 +43,23 @@ export async function POST(request: NextRequest) {
   saveUsers(users);
   return NextResponse.json({ success: true });
 }
+
+export async function PUT(request: NextRequest) {
+  const { username, password, pages } = await request.json();
+  if (!username) {
+    return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
+  }
+  const users = loadUsers();
+  const user = users.find((u: any) => u.username === username);
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+  if (password) {
+    user.password = hashPassword(password);
+  }
+  if (pages) {
+    user.pages = pages;
+  }
+  saveUsers(users);
+  return NextResponse.json({ success: true });
+}
