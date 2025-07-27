@@ -12,7 +12,7 @@ social_router = APIRouter(prefix="/api/v1/social")
 
 OPENAI_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o")
 IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "dall-e-3")
-FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v19.0")
+FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 
 
