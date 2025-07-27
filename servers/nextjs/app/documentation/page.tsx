@@ -8,20 +8,33 @@ const DocumentationPage = () => {
     <div className="min-h-screen bg-[#E9E8F8] font-inter">
       <Header />
       <Wrapper className="py-8 space-y-6">
-        <h1 className="text-3xl font-bold mb-4">التوثيق</h1>
+        <h1 className="text-3xl font-bold mb-4">Documentation</h1>
         <p className="mb-4">
-          توضح هذه الصفحة التعديلات التي تمت على الموقع وكيفية استخدامه.
+          This page explains the recent changes and how to use the main features
+          of the website.
         </p>
-        <h2 className="text-2xl font-semibold mb-2">التعديلات الأخيرة</h2>
+        <h2 className="text-2xl font-semibold mb-2">Recent Updates</h2>
         <ul className="list-disc pl-6 space-y-2">
-          <li>استبدال شعار الموقع بعبارة <strong>Karen Ai</strong>.</li>
-          <li>إضافة صفحة التوثيق وإظهارها في شريط التنقل.</li>
+          <li>
+            The logo has been replaced with the <strong>Karen Ai</strong> label.
+          </li>
+          <li>A documentation page is now linked in the navigation bar.</li>
         </ul>
-        <h2 className="text-2xl font-semibold mt-6 mb-2">طريقة الاستخدام</h2>
+        <h2 className="text-2xl font-semibold mt-6 mb-2">Services Overview</h2>
+        <h3 className="text-xl font-semibold">Presentation</h3>
+        <p className="mb-4">
+          Generate slide decks with AI. Provide a topic and let Karen Ai create a
+          presentation that you can edit and download as PDF or PPTX.
+        </p>
+        <h3 className="text-xl font-semibold">Social</h3>
+        <p className="mb-4">
+          Craft social media posts with captions and images. Connect your pages,
+          generate content, and publish directly.
+        </p>
+        <h3 className="text-xl font-semibold">Flyer</h3>
         <p>
-          يمكنك إنشاء العروض التقديمية عبر لوحة التحكم باختيار مزود الذكاء
-          الاصطناعي وإدخال مفتاح API، ثم تحديد الموضوع وعدد الشرائح واختيار
-          الثيم. بعد ذلك يمكنك تعديل الشرائح وتصديرها بصيغة PDF أو PPTX.
+          Design infographic flyers in several styles. Enter a title, topic, and
+          steps, then generate a shareable image.
         </p>
       </Wrapper>
     </div>
