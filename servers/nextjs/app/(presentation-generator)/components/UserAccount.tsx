@@ -5,6 +5,7 @@ import {
   LogOut,
   Megaphone,
   Image as ImageIcon,
+  FileText,
 } from "lucide-react";
 import React from "react";
 import Link from "next/link";
@@ -55,6 +56,15 @@ const UserAccount = () => {
       >
         <ImageIcon className="w-5 h-5" />
         <span className="text-sm font-medium font-inter">Flyer</span>
+      </Link>
+      <Link
+        href="/documentation"
+        prefetch={false}
+        className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
+        role="menuitem"
+      >
+        <FileText className="w-5 h-5" />
+        <span className="text-sm font-medium font-inter">Documentation</span>
       </Link>
       {user === "admin@clingroup.net" && (
         <Link
