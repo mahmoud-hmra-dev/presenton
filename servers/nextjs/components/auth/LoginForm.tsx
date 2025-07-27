@@ -11,13 +11,17 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (
-      username === "admin@clingroup.net" &&
-      password === "clingroup#123@"
-    ) {
-      dispatch(login({ user: username }));
+    setError("");
+    const res = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      dispatch(login({ user: data.username, pages: data.pages }));
       router.push("/");
     } else {
       setError("Invalid credentials");
