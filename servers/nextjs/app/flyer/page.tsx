@@ -5,7 +5,6 @@ import Wrapper from "@/components/Wrapper";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactSelect from "react-select";
 
 export default function FlyerPage() {
@@ -21,9 +20,6 @@ export default function FlyerPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [design, setDesign] = useState("cartoon");
 
-  const [manualCaption, setManualCaption] = useState("");
-  const [manualFile, setManualFile] = useState<File | null>(null);
-  const [manualPreview, setManualPreview] = useState<string | null>(null);
 
   const addStep = () => {
     setSteps([...steps, { title: "", text: "" }]);
@@ -42,9 +38,9 @@ export default function FlyerPage() {
   };
 
   const buildPrompt = () => {
-    const base = `Create an infographic flyer in a modern, colorful cartoon style with bold black outlines and soft pastel colors (light blue, yellow, pink).`;
-    const minimalist = `Create a clean minimalist infographic flyer with lots of white space and thin sans-serif fonts.`;
-    const retro = `Create a bold retro style infographic flyer with bright contrasting colors and thick outlines.`;
+    const base = `Create an infographic flyer in a modern, colorful cartoon style with bold black outlines and soft pastel colors (light blue, yellow, pink). Ensure all text is crisp and easy to read.`;
+    const minimalist = `Create a clean minimalist infographic flyer with lots of white space and thin sans-serif fonts. Make the wording sharp and legible.`;
+    const retro = `Create a bold retro style infographic flyer with bright contrasting colors and thick outlines. Use clear readable lettering.`;
 
     const styleMap: Record<string, string> = {
       cartoon: base,
@@ -52,16 +48,22 @@ export default function FlyerPage() {
       retro: retro,
     };
 
+    const stepsContent = steps
+      .map((s, i) => `${i + 1}. ${s.title}: ${s.text}`)
+      .join("\n");
+
     return `${styleMap[design]}
 The infographic should be titled "${title}" inside a large yellow thought bubble at the top, next to cartoon-style icons.
 
-Divide the flyer into ${steps.length} numbered sections. Each section should include:
+Divide the flyer into ${steps.length} numbered sections with very clear and legible text. Each section should include:
 1. A large, colored number inside a circle.
 2. A title for the section.
 3. A short description for each point.
 
+${stepsContent}
+
 Topic: ${topic}
-Make the layout vertical, highly visual, readable, and engaging for social media or print.`;
+Use high contrast fonts so all text is easily readable. Make the layout vertical, highly visual, and engaging for social media or print.`;
   };
 
   const generate = async () => {
@@ -75,28 +77,27 @@ Make the layout vertical, highly visual, readable, and engaging for social media
     if (res.ok) {
       const data = await res.json();
       setImageUrl(data.image_url);
+      await fetch("/api/v1/social/flyers/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          title,
+          topic,
+          steps,
+          design,
+          image_url: data.image_url,
+        }),
+      });
     }
   };
 
-  const onManualFileChange = (file: File | null) => {
-    setManualFile(file);
-    if (file) {
-      setManualPreview(URL.createObjectURL(file));
-    } else {
-      setManualPreview(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
       <Header />
       <Wrapper className="py-10 max-w-3xl space-y-4">
-        <Tabs defaultValue="ai" className="w-full space-y-6">
-          <TabsList className="w-full flex justify-center mb-4">
-            <TabsTrigger value="ai">AI Generator</TabsTrigger>
-            <TabsTrigger value="manual">Manual</TabsTrigger>
-          </TabsList>
-          <TabsContent value="ai" className="space-y-4 bg-white rounded p-4">
+        <div className="space-y-4 bg-white rounded p-4">
             <ReactSelect
               classNamePrefix="select"
               options={[
@@ -152,23 +153,7 @@ Make the layout vertical, highly visual, readable, and engaging for social media
                 <img src={imageUrl} alt="flyer" className="max-w-sm w-full" />
               </div>
             )}
-          </TabsContent>
-          <TabsContent value="manual" className="space-y-4 bg-white rounded p-4">
-            <Textarea
-              placeholder="Caption"
-              value={manualCaption}
-              onChange={(e) => setManualCaption(e.target.value)}
-            />
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={(e) => onManualFileChange(e.target.files?.[0] || null)}
-            />
-            {manualPreview && (
-              <img src={manualPreview} alt="preview" className="max-w-sm" />
-            )}
-          </TabsContent>
-        </Tabs>
+          </div>
       </Wrapper>
     </div>
   );

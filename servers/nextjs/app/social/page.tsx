@@ -54,6 +54,10 @@ export default function SocialPage() {
       const data = await res.json();
       setCaption(data.content);
       setImageUrl(data.image_url);
+      const saveBody = new FormData();
+      saveBody.append("caption", data.content);
+      saveBody.append("image_url", data.image_url);
+      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
       let fetched = data.pages || [];
       if (allowedPages.length > 0) {
         fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
@@ -93,7 +97,13 @@ export default function SocialPage() {
     body.append("file", manualFile);
     selected.forEach((id) => body.append("page_ids", id));
     const res = await fetch("/api/v1/social/publish", { method: "POST", body });
-    if (res.ok) alert("Published");
+    if (res.ok) {
+      alert("Published");
+      const saveBody = new FormData();
+      saveBody.append("caption", manualCaption);
+      saveBody.append("file", manualFile);
+      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
+    }
   };
 
   const onManualFileChange = (file: File | null) => {
