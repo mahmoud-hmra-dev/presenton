@@ -5,19 +5,17 @@ import Wrapper from "@/components/Wrapper";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import ReactSelect from "react-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface PageInfo { id: string; name: string }
+interface PageInfo {
+  id: string;
+  name: string;
+}
 
 export default function SocialPage() {
   const [text, setText] = useState("");
-  const [audio, setAudio] = useState<File | null>(null);
-  const [content, setContent] = useState<string | null>(null);
+  const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -40,24 +38,40 @@ export default function SocialPage() {
   const generate = async () => {
     const form = new FormData();
     if (text) form.append("text", text);
-    if (audio) form.append("file", audio);
-    const res = await fetch("/api/v1/social/generate", { method: "POST", body: form });
+    const res = await fetch("/api/v1/social/generate", {
+      method: "POST",
+      body: form,
+    });
     if (res.ok) {
       const data = await res.json();
-      setContent(data.content);
+      setCaption(data.content);
       setImageUrl(data.image_url);
       setPages(data.pages || []);
     }
   };
 
   const publishAI = async () => {
-    if (!content || !imageUrl) return;
+    if (!caption || !imageUrl) return;
     const body = new FormData();
-    body.append("caption", content);
+    body.append("caption", caption);
     body.append("image_url", imageUrl);
     selected.forEach((id) => body.append("page_ids", id));
     const res = await fetch("/api/v1/social/publish", { method: "POST", body });
     if (res.ok) alert("Published");
+  };
+
+  const regenerateImage = async () => {
+    if (!caption) return;
+    const form = new FormData();
+    form.append("text", caption);
+    const res = await fetch("/api/v1/social/generate", {
+      method: "POST",
+      body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setImageUrl(data.image_url);
+    }
   };
 
   const publishManual = async () => {
@@ -94,12 +108,19 @@ export default function SocialPage() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <Input type="file" accept="audio/*" onChange={(e) => setAudio(e.target.files?.[0] || null)} />
             <Button onClick={generate}>Generate</Button>
-            {content && (
+            {caption && (
               <div className="space-y-2">
-                <p>{content}</p>
-                {imageUrl && <img src={imageUrl} alt="generated" className="max-w-sm" />}
+                <Textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                />
+                {imageUrl && (
+                  <img src={imageUrl} alt="generated" className="max-w-sm" />
+                )}
+                <Button variant="secondary" onClick={regenerateImage}>
+                  Regenerate Image
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -109,24 +130,28 @@ export default function SocialPage() {
               value={manualCaption}
               onChange={(e) => setManualCaption(e.target.value)}
             />
-            <Input type="file" accept="image/*" onChange={(e) => onManualFileChange(e.target.files?.[0] || null)} />
-            {manualPreview && <img src={manualPreview} alt="preview" className="max-w-sm" />}
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => onManualFileChange(e.target.files?.[0] || null)}
+            />
+            {manualPreview && (
+              <img src={manualPreview} alt="preview" className="max-w-sm" />
+            )}
           </TabsContent>
           {pages.length > 0 && (
-            <select
-              multiple
-              value={selected}
-              onChange={(e) =>
-                setSelected(Array.from(e.target.selectedOptions).map((o) => o.value))
+            <ReactSelect
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+              options={pages.map((p) => ({ value: p.id, label: p.name }))}
+              value={pages
+                .filter((p) => selected.includes(p.id))
+                .map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(options) =>
+                setSelected(options.map((o) => o.value as string))
               }
-              className="border p-2 w-full"
-            >
-              {pages.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+            />
           )}
           {selected.length > 0 && (
             <div className="flex gap-4">
