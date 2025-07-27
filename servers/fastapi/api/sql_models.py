@@ -58,3 +58,21 @@ class KeyValueSqlModel(SQLModel, table=True):
 class PreferencesSqlModel(SQLModel, table=True):
     id: int = Field(default=0, primary_key=True)
     theme: Optional[dict] = Field(sa_column=Column(JSON, nullable=True), default=None)
+
+
+class SocialPostSqlModel(SQLModel, table=True):
+    id: str = Field(default_factory=get_random_uuid, primary_key=True)
+    created_at: datetime = Field(default=datetime.now())
+    caption: str
+    image_url: Optional[str] = None
+    file: Optional[str] = None
+
+class FlyerSqlModel(SQLModel, table=True):
+    id: str = Field(default_factory=get_random_uuid, primary_key=True)
+    created_at: datetime = Field(default=datetime.now())
+    prompt: Optional[str] = None
+    title: Optional[str] = None
+    topic: Optional[str] = None
+    steps: Optional[List[dict]] = Field(sa_column=Column(JSON, nullable=True), default=None)
+    design: Optional[str] = None
+    image_url: Optional[str] = None

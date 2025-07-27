@@ -1,11 +1,17 @@
 import json
 import os
 import re
+import uuid
 from typing import List, Optional
 
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlmodel import select
+
+from api.sql_models import FlyerSqlModel, SocialPostSqlModel
+from api.services.database import get_sql_session
 
 from openai import AsyncOpenAI
 
@@ -196,3 +202,63 @@ async def publish(
         })
 
     return {"results": results}
+
+
+@social_router.post("/posts/save")
+async def save_post(
+    caption: str = Form(...),
+    image_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
+    path = None
+    if file:
+        os.makedirs(os.path.join(APP_DATA_DIR, "posts"), exist_ok=True)
+        path = os.path.join(
+            APP_DATA_DIR,
+            "posts",
+            f"{uuid.uuid4()}_{file.filename}"
+        )
+        with open(path, "wb") as f:
+            f.write(await file.read())
+
+    with get_sql_session() as session:
+        post = SocialPostSqlModel(caption=caption, image_url=image_url, file=path)
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+        return post
+
+
+@social_router.get("/posts")
+async def get_posts():
+    with get_sql_session() as session:
+        posts = session.exec(select(SocialPostSqlModel)).all()
+    posts.sort(key=lambda x: x.created_at, reverse=True)
+    return posts
+
+
+class FlyerData(BaseModel):
+    prompt: str
+    title: Optional[str] = None
+    topic: Optional[str] = None
+    steps: Optional[List[dict]] = None
+    design: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+@social_router.post("/flyers/save")
+async def save_flyer(data: FlyerData):
+    with get_sql_session() as session:
+        flyer = FlyerSqlModel(**data.model_dump())
+        session.add(flyer)
+        session.commit()
+        session.refresh(flyer)
+        return flyer
+
+
+@social_router.get("/flyers")
+async def get_flyers():
+    with get_sql_session() as session:
+        flyers = session.exec(select(FlyerSqlModel)).all()
+    flyers.sort(key=lambda x: x.created_at, reverse=True)
+    return flyers
