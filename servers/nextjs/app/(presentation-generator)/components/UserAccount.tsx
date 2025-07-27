@@ -25,6 +25,8 @@ const UserAccount = () => {
     router.push("/login");
   };
 
+  const user = useSelector((state: RootState) => state.auth.user);
+
   return (
     <div className="flex items-center gap-2">
       <Link
@@ -54,6 +56,17 @@ const UserAccount = () => {
         <ImageIcon className="w-5 h-5" />
         <span className="text-sm font-medium font-inter">Flyer</span>
       </Link>
+      {user === "admin@clingroup.net" && (
+        <Link
+          href="/admin"
+          prefetch={false}
+          className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
+          role="menuitem"
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-sm font-medium font-inter">Admin</span>
+        </Link>
+      )}
       {canChangeKeys && (
         <Link
           href="/settings"

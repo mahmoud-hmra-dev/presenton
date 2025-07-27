@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import ReactSelect from "react-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 interface PageInfo {
   id: string;
@@ -20,6 +22,8 @@ export default function SocialPage() {
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
 
+  const allowedPages = useSelector((state: RootState) => state.auth.pages);
+
   const [manualCaption, setManualCaption] = useState("");
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [manualPreview, setManualPreview] = useState<string | null>(null);
@@ -29,11 +33,15 @@ export default function SocialPage() {
       const res = await fetch("/api/v1/social/pages");
       if (res.ok) {
         const data = await res.json();
-        setPages(data.pages || []);
+        let fetched = data.pages || [];
+        if (allowedPages.length > 0) {
+          fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+        }
+        setPages(fetched);
       }
     };
     fetchPages();
-  }, []);
+  }, [allowedPages]);
 
   const generate = async () => {
     const form = new FormData();
@@ -46,7 +54,11 @@ export default function SocialPage() {
       const data = await res.json();
       setCaption(data.content);
       setImageUrl(data.image_url);
-      setPages(data.pages || []);
+      let fetched = data.pages || [];
+      if (allowedPages.length > 0) {
+        fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+      }
+      setPages(fetched);
     }
   };
 
