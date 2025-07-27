@@ -15,11 +15,7 @@ const Header = () => {
           <div className="flex items-center gap-3">
             {pathname !== '/upload' && <BackBtn />}
             <Link href="/dashboard">
-              <img
-                src="/logo-white.png"
-                alt="Presentation logo"
-                className="h-16"
-              />
+              <span className="text-white font-bold text-2xl">Karen Ai</span>
             </Link>
           </div>
           <div className="flex items-center gap-3 sm:gap-5 md:gap-10">

@@ -385,7 +385,7 @@ export default function Home() {
                 {/* Branding Header */}
                 <div className="text-center mb-12">
                     <div className="flex items-center justify-center gap-3 mb-4">
-                        <img src="/Logo.png" alt="Presenton Logo" className="" />
+                        <span className="text-4xl font-bold text-gray-800">Karen Ai</span>
                     </div>
                     <p className="text-gray-600 text-lg">
                         Open-source AI presentation generator

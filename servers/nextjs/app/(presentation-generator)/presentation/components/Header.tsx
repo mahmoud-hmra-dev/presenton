@@ -303,11 +303,7 @@ const Header = ({
       <Announcement />
       <Wrapper className="flex items-center justify-between py-1">
         <Link href="/dashboard" className="min-w-[162px]">
-          <img
-            className="h-16"
-            src="/logo-white.png"
-            alt="Presentation logo"
-          />
+          <span className="text-white font-bold text-2xl">Karen Ai</span>
         </Link>
 
         {/* Desktop Menu */}
