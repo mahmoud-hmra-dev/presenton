@@ -4,7 +4,10 @@ import presentationGenerationReducer from "./slices/presentationGeneration";
 import themeReducer from "@/app/(presentation-generator)/store/themeSlice";
 import pptGenUploadReducer from "./slices/presentationGenUpload";
 import userConfigReducer from "./slices/userConfig";
-import authReducer from "./slices/auth";
+import authReducer, { initialAuthState } from "./slices/auth";
+import { loadAuthState } from "@/utils/authStorage";
+const preloadedAuth = typeof window !== 'undefined' ? loadAuthState() : undefined;
+
 export const store = configureStore({
   reducer: {
     presentationGeneration: presentationGenerationReducer,
@@ -12,6 +15,9 @@ export const store = configureStore({
     pptGenUpload: pptGenUploadReducer,
     userConfig: userConfigReducer,
     auth: authReducer,
+  },
+  preloadedState: {
+    auth: preloadedAuth || initialAuthState,
   },
 });
 
