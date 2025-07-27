@@ -15,6 +15,54 @@ OPENAI_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o")
 IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "dall-e-3")
 FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
+FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
+FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
+
+APP_DATA_DIR = os.getenv("APP_DATA_DIRECTORY", "user_data")
+TOKEN_FILE = os.path.join(APP_DATA_DIR, "facebook_token.txt")
+
+
+def _load_token() -> Optional[str]:
+    """Load token from env or file."""
+    token = FACEBOOK_TOKEN
+    if not token and os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "r") as f:
+            token = f.read().strip()
+    return token
+
+
+def _save_token(token: str):
+    os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+    try:
+        with open(TOKEN_FILE, "w") as f:
+            f.write(token)
+    except Exception:
+        pass
+
+
+FACEBOOK_TOKEN_VALUE = _load_token()
+
+
+def _refresh_token(token: str) -> str:
+    """Refresh and persist Facebook token if app credentials provided."""
+    if not (FACEBOOK_APP_ID and FACEBOOK_APP_SECRET):
+        return token
+    url = f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/oauth/access_token"
+    resp = requests.get(
+        url,
+        params={
+            "grant_type": "fb_exchange_token",
+            "client_id": FACEBOOK_APP_ID,
+            "client_secret": FACEBOOK_APP_SECRET,
+            "fb_exchange_token": token,
+        },
+    )
+    if resp.status_code == 200:
+        new_token = resp.json().get("access_token")
+        if new_token:
+            _save_token(new_token)
+            return new_token
+    return token
 
 
 async def _transcribe_audio(file: UploadFile, client: AsyncOpenAI) -> str:
@@ -61,14 +109,29 @@ async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
 
 
 def _get_pages():
-    if not FACEBOOK_TOKEN:
+    """Fetch pages and refresh token on expiration."""
+    global FACEBOOK_TOKEN_VALUE
+
+    token = FACEBOOK_TOKEN_VALUE
+    if not token:
         return []
+
     url = f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/me/accounts"
-    resp = requests.get(url, params={"access_token": FACEBOOK_TOKEN})
+    resp = requests.get(url, params={"access_token": token})
+
+    if resp.status_code != 200:
+        token = _refresh_token(token)
+        FACEBOOK_TOKEN_VALUE = token
+        resp = requests.get(url, params={"access_token": token})
+
     if resp.status_code != 200:
         raise HTTPException(status_code=500, detail="Failed to fetch Facebook pages")
+
     data = resp.json().get("data", [])
-    return [{"id": p["id"], "name": p["name"], "access_token": p.get("access_token")} for p in data]
+    return [
+        {"id": p["id"], "name": p["name"], "access_token": p.get("access_token")}
+        for p in data
+    ]
 
 
 @social_router.get("/pages")
@@ -98,7 +161,7 @@ async def publish(
     image_url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
-    if not FACEBOOK_TOKEN:
+    if not FACEBOOK_TOKEN_VALUE:
         raise HTTPException(status_code=400, detail="FACEBOOK_TOKEN not set")
 
     all_pages = _get_pages()
