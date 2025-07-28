@@ -256,12 +256,10 @@ async def publish(
 async def publish_linkedin(
     page_ids: List[str] = Form(...),
     caption: str = Form(...),
-    image_url: str = Form(...),
+    image_url: Optional[str] = Form(None),
 ):
     if not BLOTATO_API_KEY:
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
-    if not image_url:
-        raise HTTPException(status_code=400, detail="Provide image_url")
 
     headers = {
         "Authorization": f"Bearer {BLOTATO_API_KEY}",
@@ -277,16 +275,19 @@ async def publish_linkedin(
         else:
             account_id, page_id = combined.split(":", 1)
 
+        content = {
+            "text": caption,
+            "platform": "linkedin",
+        }
+        if image_url:
+            content["mediaUrls"] = [image_url]
+
         payload = {
             "post": {
                 "target": {
                     "targetType": "linkedin",
                 },
-                "content": {
-                    "text": caption,
-                    "platform": "linkedin",
-                    "mediaUrls": [image_url],
-                },
+                "content": content,
                 "accountId": account_id,
             }
         }
