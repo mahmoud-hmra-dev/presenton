@@ -150,7 +150,7 @@ def _get_linkedin_pages():
         print("Missing BLOTATO_API_KEY")
         return []
 
-    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
+    headers = {"blotato-api-key": f"{BLOTATO_API_KEY}"}
 
     try:
         resp = requests.get("https://backend.blotato.com/v2/accounts", headers=headers)
