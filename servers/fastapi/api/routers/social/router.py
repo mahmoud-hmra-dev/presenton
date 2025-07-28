@@ -275,7 +275,7 @@ async def publish_linkedin(
         payload = {"url": data_uri}
         resp = requests.post(
             "https://backend.blotato.com/v2/media",
-            headers={"blotato-api-key": BLOTATO_API_KEY, "Content-Type": "application/json"},
+            headers={"blotato-api-key": "blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs=", "Content-Type": "application/json"},
             data=json.dumps(payload),
         )
         if resp.status_code == 201:
