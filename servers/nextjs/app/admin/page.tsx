@@ -12,16 +12,27 @@ interface PageInfo {
   name: string;
 }
 
+interface LinkedinPageInfo extends PageInfo {
+  account_id: string;
+}
+
 const AdminPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [linkedinPages, setLinkedinPages] = useState<LinkedinPageInfo[]>([]);
+  const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const [users, setUsers] = useState<{ username: string; pages: string[] }[]>([]);
+  const [users, setUsers] = useState<{
+    username: string;
+    pages: string[];
+    linkedin_pages: string[];
+  }[]>([]);
   const [editing, setEditing] = useState<string | null>(null);
   const [editPassword, setEditPassword] = useState("");
   const [editPages, setEditPages] = useState<string[]>([]);
+  const [editLinkedinPages, setEditLinkedinPages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchUsers = async () => {
@@ -41,6 +52,19 @@ const AdminPage = () => {
       }
     };
     fetchPages();
+    const fetchLinkedinPages = async () => {
+      const res = await fetch("/api/v1/social/linkedin/pages");
+      if (res.ok) {
+        const data = await res.json();
+        const fetched = (data.pages || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          account_id: p.account_id,
+        }));
+        setLinkedinPages(fetched);
+      }
+    };
+    fetchLinkedinPages();
     fetchUsers();
   }, []);
 
@@ -49,13 +73,19 @@ const AdminPage = () => {
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, pages: selected }),
+      body: JSON.stringify({
+        username,
+        password,
+        pages: selected,
+        linkedin_pages: selectedLinkedin,
+      }),
     });
     if (res.ok) {
       setMessage("User created");
       setUsername("");
       setPassword("");
       setSelected([]);
+      setSelectedLinkedin([]);
       fetchUsers();
     } else {
       const data = await res.json();
@@ -70,13 +100,19 @@ const AdminPage = () => {
     const res = await fetch("/api/users", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: editing, password: editPassword || undefined, pages: editPages }),
+      body: JSON.stringify({
+        username: editing,
+        password: editPassword || undefined,
+        pages: editPages,
+        linkedin_pages: editLinkedinPages,
+      }),
     });
     if (res.ok) {
       setMessage("User updated");
       setEditing(null);
       setEditPassword("");
       setEditPages([]);
+      setEditLinkedinPages([]);
       fetchUsers();
     } else {
       const data = await res.json();
@@ -103,16 +139,36 @@ const AdminPage = () => {
           onChange={(e) => setPassword(e.target.value)}
         />
         {pages.length > 0 && (
-          <ReactSelect
-            isMulti
-            className="basic-multi-select"
-            classNamePrefix="select"
-            options={pages.map((p) => ({ value: p.id, label: p.name }))}
-            value={pages
-              .filter((p) => selected.includes(p.id))
-              .map((p) => ({ value: p.id, label: p.name }))}
-            onChange={(opts) => setSelected(opts.map((o) => o.value as string))}
-          />
+          <div className="space-y-2">
+            <p className="font-medium">Facebook</p>
+            <ReactSelect
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+              options={pages.map((p) => ({ value: p.id, label: p.name }))}
+              value={pages
+                .filter((p) => selected.includes(p.id))
+                .map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(opts) => setSelected(opts.map((o) => o.value as string))}
+            />
+          </div>
+        )}
+        {linkedinPages.length > 0 && (
+          <div className="space-y-2">
+            <p className="font-medium">LinkedIn</p>
+            <ReactSelect
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+              options={linkedinPages.map((p) => ({ value: `${p.account_id}:${p.id}`, label: p.name }))}
+              value={linkedinPages
+                .filter((p) => selectedLinkedin.includes(`${p.account_id}:${p.id}`))
+                .map((p) => ({ value: `${p.account_id}:${p.id}`, label: p.name }))}
+              onChange={(opts) =>
+                setSelectedLinkedin(opts.map((o) => o.value as string))
+              }
+            />
+          </div>
         )}
         <Button onClick={createUser} disabled={loading}>Create User</Button>
         {message && <p>{message}</p>}
@@ -131,17 +187,36 @@ const AdminPage = () => {
                     onChange={(e) => setEditPassword(e.target.value)}
                   />
                   {pages.length > 0 && (
-                    <ReactSelect
-                      isMulti
-                      classNamePrefix="select"
-                      options={pages.map((p) => ({ value: p.id, label: p.name }))}
-                      value={pages
-                        .filter((p) => editPages.includes(p.id))
-                        .map((p) => ({ value: p.id, label: p.name }))}
-                      onChange={(opts) =>
-                        setEditPages(opts.map((o) => o.value as string))
-                      }
-                    />
+                    <div className="space-y-2">
+                      <p className="font-medium">Facebook</p>
+                      <ReactSelect
+                        isMulti
+                        classNamePrefix="select"
+                        options={pages.map((p) => ({ value: p.id, label: p.name }))}
+                        value={pages
+                          .filter((p) => editPages.includes(p.id))
+                          .map((p) => ({ value: p.id, label: p.name }))}
+                        onChange={(opts) =>
+                          setEditPages(opts.map((o) => o.value as string))
+                        }
+                      />
+                    </div>
+                  )}
+                  {linkedinPages.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="font-medium">LinkedIn</p>
+                      <ReactSelect
+                        isMulti
+                        classNamePrefix="select"
+                        options={linkedinPages.map((p) => ({ value: `${p.account_id}:${p.id}`, label: p.name }))}
+                        value={linkedinPages
+                          .filter((p) => editLinkedinPages.includes(`${p.account_id}:${p.id}`))
+                          .map((p) => ({ value: `${p.account_id}:${p.id}`, label: p.name }))}
+                        onChange={(opts) =>
+                          setEditLinkedinPages(opts.map((o) => o.value as string))
+                        }
+                      />
+                    </div>
                   )}
                   <div className="flex gap-2">
                     <Button onClick={updateUser} disabled={loading}>Save</Button>
@@ -151,6 +226,7 @@ const AdminPage = () => {
                         setEditing(null);
                         setEditPassword("");
                         setEditPages([]);
+                        setEditLinkedinPages([]);
                       }}
                     >
                       Cancel
@@ -162,7 +238,10 @@ const AdminPage = () => {
                   <div>
                     <p className="font-semibold">{u.username}</p>
                     <p className="text-sm text-gray-600">
-                      {u.pages.join(", ") || "All pages"}
+                      {(u.pages.join(", ") || "All pages") +
+                        (u.linkedin_pages.length > 0
+                          ? ` | ${u.linkedin_pages.join(", ")}`
+                          : "")}
                     </p>
                   </div>
                   <Button
@@ -170,6 +249,7 @@ const AdminPage = () => {
                     onClick={() => {
                       setEditing(u.username);
                       setEditPages(u.pages);
+                      setEditLinkedinPages(u.linkedin_pages);
                     }}
                   >
                     Edit

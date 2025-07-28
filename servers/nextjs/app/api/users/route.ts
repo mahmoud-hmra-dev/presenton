@@ -16,6 +16,7 @@ function loadUsers() {
       username: 'admin@clingroup.net',
       password: hashPassword('clingroup#123@'),
       pages: [],
+      linkedin_pages: [],
     });
     settingsStore.set(USERS_KEY, users);
   }
@@ -26,12 +27,16 @@ function saveUsers(users: any[]) {
 }
 
 export async function GET() {
-  const users = loadUsers().map((u: any) => ({ username: u.username, pages: u.pages || [] }));
+  const users = loadUsers().map((u: any) => ({
+    username: u.username,
+    pages: u.pages || [],
+    linkedin_pages: u.linkedin_pages || [],
+  }));
   return NextResponse.json({ users });
 }
 
 export async function POST(request: NextRequest) {
-  const { username, password, pages } = await request.json();
+  const { username, password, pages, linkedin_pages } = await request.json();
   if (!username || !password) {
     return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
   }
@@ -39,13 +44,18 @@ export async function POST(request: NextRequest) {
   if (users.some((u: any) => u.username === username)) {
     return NextResponse.json({ error: 'User exists' }, { status: 400 });
   }
-  users.push({ username, password: hashPassword(password), pages: pages || [] });
+  users.push({
+    username,
+    password: hashPassword(password),
+    pages: pages || [],
+    linkedin_pages: linkedin_pages || [],
+  });
   saveUsers(users);
   return NextResponse.json({ success: true });
 }
 
 export async function PUT(request: NextRequest) {
-  const { username, password, pages } = await request.json();
+  const { username, password, pages, linkedin_pages } = await request.json();
   if (!username) {
     return NextResponse.json({ error: 'Invalid data' }, { status: 400 });
   }
@@ -59,6 +69,9 @@ export async function PUT(request: NextRequest) {
   }
   if (pages) {
     user.pages = pages;
+  }
+  if (linkedin_pages) {
+    user.linkedin_pages = linkedin_pages;
   }
   saveUsers(users);
   return NextResponse.json({ success: true });

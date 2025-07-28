@@ -2,6 +2,7 @@ export interface StoredAuthState {
   isLoggedIn: boolean;
   user?: string;
   pages: string[];
+  linkedinPages: string[];
 }
 
 export function loadAuthState(): StoredAuthState | undefined {
@@ -9,7 +10,9 @@ export function loadAuthState(): StoredAuthState | undefined {
   try {
     const data = localStorage.getItem('auth');
     if (!data) return undefined;
-    return JSON.parse(data) as StoredAuthState;
+    const parsed = JSON.parse(data) as StoredAuthState;
+    parsed.linkedinPages = parsed.linkedinPages || [];
+    return parsed;
   } catch {
     return undefined;
   }
