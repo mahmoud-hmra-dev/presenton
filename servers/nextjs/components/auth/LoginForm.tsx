@@ -21,7 +21,13 @@ const LoginForm = () => {
     });
     if (res.ok) {
       const data = await res.json();
-      dispatch(login({ user: data.username, pages: data.pages }));
+      dispatch(
+        login({
+          user: data.username,
+          pages: data.pages,
+          linkedinPages: data.linkedin_pages,
+        }),
+      );
       router.push("/");
     } else {
       setError("Invalid credentials");

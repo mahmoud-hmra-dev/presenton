@@ -16,6 +16,7 @@ function loadUsers() {
       username: 'admin@clingroup.net',
       password: hashPassword('clingroup#123@'),
       pages: [],
+      linkedin_pages: [],
     });
     settingsStore.set(USERS_KEY, users);
   }
@@ -30,5 +31,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
-  return NextResponse.json({ username: user.username, pages: user.pages || [] });
+  return NextResponse.json({
+    username: user.username,
+    pages: user.pages || [],
+    linkedin_pages: user.linkedin_pages || [],
+  });
 }

@@ -30,6 +30,9 @@ export default function SocialPage() {
   const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
 
   const allowedPages = useSelector((state: RootState) => state.auth.pages);
+  const allowedLinkedinPages = useSelector(
+    (state: RootState) => state.auth.linkedinPages,
+  );
 
   const [manualCaption, setManualCaption] = useState("");
   const [manualFile, setManualFile] = useState<File | null>(null);
@@ -55,16 +58,21 @@ export default function SocialPage() {
       const res = await fetch("/api/v1/social/linkedin/pages");
       if (res.ok) {
         const data = await res.json();
-        const fetched = (data.pages || []).map((p: any) => ({
+        let fetched = (data.pages || []).map((p: any) => ({
           id: p.id,
           name: p.name,
           accountId: p.account_id,
         }));
+        if (allowedLinkedinPages.length > 0) {
+          fetched = fetched.filter((p: any) =>
+            allowedLinkedinPages.includes(`${p.accountId}:${p.id}`),
+          );
+        }
         setLinkedinPages(fetched);
       }
     };
     fetchLinkedinPages();
-  }, [allowedPages]);
+  }, [allowedPages, allowedLinkedinPages]);
 
   const generate = async () => {
     setLoading(true);
@@ -242,40 +250,46 @@ export default function SocialPage() {
             )}
           </TabsContent>
           {pages.length > 0 && (
-            <ReactSelect
-              isMulti
-              className="basic-multi-select"
-              classNamePrefix="select"
-              options={pages.map((p) => ({ value: p.id, label: p.name }))}
-              value={pages
-                .filter((p) => selected.includes(p.id))
-                .map((p) => ({ value: p.id, label: p.name }))}
-              onChange={(options) =>
-                setSelected(options.map((o) => o.value as string))
-              }
-            />
+            <div className="space-y-2">
+              <p className="font-medium">Facebook</p>
+              <ReactSelect
+                isMulti
+                className="basic-multi-select"
+                classNamePrefix="select"
+                options={pages.map((p) => ({ value: p.id, label: p.name }))}
+                value={pages
+                  .filter((p) => selected.includes(p.id))
+                  .map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(options) =>
+                  setSelected(options.map((o) => o.value as string))
+                }
+              />
+            </div>
           )}
           {linkedinPages.length > 0 && (
-            <ReactSelect
-              isMulti
-              className="basic-multi-select"
-              classNamePrefix="select"
-              options={linkedinPages.map((p) => ({
-                value: `${p.accountId}:${p.id}`,
-                label: p.name,
-              }))}
-              value={linkedinPages
-                .filter((p) =>
-                  selectedLinkedin.includes(`${p.accountId}:${p.id}`),
-                )
-                .map((p) => ({
+            <div className="space-y-2">
+              <p className="font-medium">LinkedIn</p>
+              <ReactSelect
+                isMulti
+                className="basic-multi-select"
+                classNamePrefix="select"
+                options={linkedinPages.map((p) => ({
                   value: `${p.accountId}:${p.id}`,
                   label: p.name,
                 }))}
-              onChange={(opts) =>
-                setSelectedLinkedin(opts.map((o) => o.value as string))
-              }
-            />
+                value={linkedinPages
+                  .filter((p) =>
+                    selectedLinkedin.includes(`${p.accountId}:${p.id}`),
+                  )
+                  .map((p) => ({
+                    value: `${p.accountId}:${p.id}`,
+                    label: p.name,
+                  }))}
+                onChange={(opts) =>
+                  setSelectedLinkedin(opts.map((o) => o.value as string))
+                }
+              />
+            </div>
           )}
           {selected.length + selectedLinkedin.length > 0 && (
             <div className="flex gap-4">
