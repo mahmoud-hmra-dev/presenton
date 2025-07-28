@@ -5,6 +5,7 @@ import Wrapper from "@/components/Wrapper";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { OverlayLoader } from "@/components/ui/overlay-loader";
 import ReactSelect from "react-select";
 
 export default function FlyerPage() {
@@ -19,6 +20,7 @@ export default function FlyerPage() {
   const [steps, setSteps] = useState<Step[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [design, setDesign] = useState("cartoon");
+  const [loading, setLoading] = useState(false);
 
 
   const addStep = () => {
@@ -67,34 +69,40 @@ Use high contrast fonts so all text is easily readable. Make the layout vertical
   };
 
   const generate = async () => {
+    setLoading(true);
     const form = new FormData();
     const prompt = buildPrompt();
     form.append("text", prompt);
-    const res = await fetch("/api/v1/social/generate", {
-      method: "POST",
-      body: form,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setImageUrl(data.image_url);
-      await fetch("/api/v1/social/flyers/save", {
+    try {
+      const res = await fetch("/api/v1/social/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          title,
-          topic,
-          steps,
-          design,
-          image_url: data.image_url,
-        }),
+        body: form,
       });
+      if (res.ok) {
+        const data = await res.json();
+        setImageUrl(data.image_url);
+        await fetch("/api/v1/social/flyers/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt,
+            title,
+            topic,
+            steps,
+            design,
+            image_url: data.image_url,
+          }),
+        });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
 
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
+      <OverlayLoader show={loading} text="Loading..." />
       <Header />
       <Wrapper className="py-10 max-w-3xl space-y-4">
         <div className="space-y-4 bg-white rounded p-4">
@@ -147,7 +155,7 @@ Use high contrast fonts so all text is easily readable. Make the layout vertical
             <Button type="button" variant="secondary" onClick={addStep}>
               Add Step
             </Button>
-            <Button onClick={generate}>Generate Flyer</Button>
+            <Button onClick={generate} disabled={loading}>Generate Flyer</Button>
             {imageUrl && (
               <div className="flex justify-center pt-4">
                 <img src={imageUrl} alt="flyer" className="max-w-sm w-full" />
