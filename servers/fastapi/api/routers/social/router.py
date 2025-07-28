@@ -150,7 +150,7 @@ def _get_linkedin_pages():
         return []
 
     headers = {
-        "blotato-api-key": "blt_HTVoFvTB1z7fflScjlCUuMjoNmiUGwzO7lVHtnC3G6g="  # استخدم الرأس الصحيح بدل Authorization
+        "blotato-api-key": "blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs="  # استخدم الرأس الصحيح بدل Authorization
     }
 
     try:
