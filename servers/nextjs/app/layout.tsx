@@ -47,46 +47,38 @@ const instrument_sans = Instrument_Sans({
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://presenton.ai"),
-  title: "Presenton.ai - AI Presentation Maker for Data Storytelling",
+  metadataBase: "",
+  title: "Karen Ai",
   description:
-    "Turn complex data into stunning, interactive presentations with Presenton.ai. Create professional slides from reports and analytics in minutes. Try now!",
+    "Karen Ai",
   keywords: [
-    "AI presentation maker",
-    "data storytelling",
-    "data visualization tool",
-    "AI data presentation",
-    "presentation generator",
-    "data to presentation",
-    "interactive presentations",
-    "professional slides",
   ],
   openGraph: {
-    title: "Presenton.ai - AI-Powered Data Presentations",
+    title: "Karen Ai",
     description:
-      "Transform data into engaging presentations effortlessly with Presenton.ai, your go-to AI tool for stunning slides and data storytelling.",
-    url: "https://presenton.ai",
-    siteName: "Presenton.ai",
+      "Karen Ai",
+    url: "",
+    siteName: "Karen.Ai",
     images: [
       {
-        url: "https://presenton.ai/presenton-feature-graphics.png",
+        url: "",
         width: 1200,
         height: 630,
-        alt: "Presenton.ai Logo",
+        alt: "Karen.Ai Logo",
       },
     ],
     type: "website",
     locale: "en_US",
   },
   alternates: {
-    canonical: "https://presenton.ai",
+    canonical: "",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Presenton.ai - AI Presentation Maker for Data Storytelling",
+    title: "Karen.Ai",
     description:
-      "Create stunning presentations from data with Presenton.ai. Simplify reports and analytics into interactive slides fast!",
-    images: ["https://presenton.ai/presenton-feature-graphics.png"],
+      "Karen.Ai",
+    images: [""],
   },
 };
 
