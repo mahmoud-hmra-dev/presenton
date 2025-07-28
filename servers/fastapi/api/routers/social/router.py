@@ -243,40 +243,53 @@ async def publish(
 
 @social_router.post("/linkedin/publish")
 async def publish_linkedin(
-    page_ids: List[str] = Form(...),
+    page_ids: List[str] = Form(...),  # يمثل accountId في Blotato
     caption: str = Form(...),
-    image_url: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
+    image_url: str = Form(...),  # مطلوب حسب بنية API
 ):
     if not BLOTATO_API_KEY:
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
+    if not image_url:
+        raise HTTPException(status_code=400, detail="Provide image_url")
 
-    if not image_url and not file:
-        raise HTTPException(status_code=400, detail="Provide image_url or file")
+    headers = {
+        "Authorization": f"Bearer {BLOTATO_API_KEY}",
+        "Content-Type": "application/json"
+    }
 
-    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
-    file_bytes = await file.read() if file else None
     results = []
-    for pid in page_ids:
-        data = {"page_id": pid, "caption": caption}
-        files = None
-        if file_bytes:
-            files = {
-                "file": (file.filename, file_bytes, file.content_type or "image/jpeg")
+
+    for account_id in page_ids:
+        payload = {
+            "post": {
+                "target": {
+                    "targetType": "linkedin"
+                },
+                "content": {
+                    "text": caption,
+                    "platform": "linkedin",
+                    "mediaUrls": [image_url]
+                },
+                "accountId": account_id
             }
-        elif image_url:
-            data["image_url"] = image_url
+        }
+
         resp = requests.post(
-            f"{BLOTATO_API_URL}/linkedin/publish",
+            "https://backend.blotato.com/v2/posts",
             headers=headers,
-            data=data,
-            files=files,
+            data=json.dumps(payload)
         )
+
         try:
             j = resp.json()
         except Exception:
             j = {"error": resp.text}
-        results.append({"page_id": pid, "status": resp.status_code, "response": j})
+
+        results.append({
+            "account_id": account_id,
+            "status": resp.status_code,
+            "response": j
+        })
 
     return {"results": results}
 
