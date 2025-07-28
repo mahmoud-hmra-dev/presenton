@@ -81,7 +81,6 @@ You may want to directly provide your API KEYS as environment variables and keep
 - **PEXELS_API_KEY=[Your Pexels API Key]**: Provide this to generate images if **LLM** is set to **ollama** or **custom**
 - **FACEBOOK_TOKEN=[Facebook Access Token]**: Used for posting to Facebook pages.
 - **FACEBOOK_APP_ID=[Facebook App ID]** and **FACEBOOK_APP_SECRET=[Facebook App Secret]**: Optional. If provided, `FACEBOOK_TOKEN` will be automatically refreshed and persisted in `APP_DATA_DIRECTORY/facebook_token.txt`.
-- **LINKEDIN_TOKEN=[LinkedIn Access Token]**: Used for publishing to LinkedIn pages.
 
 ### Using OpenAI
 ```bash
