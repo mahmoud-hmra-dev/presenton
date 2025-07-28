@@ -5,6 +5,7 @@ import Wrapper from "@/components/Wrapper";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import ReactSelect from "react-select";
+import { OverlayLoader } from "@/components/ui/overlay-loader";
 
 interface PageInfo {
   id: string;
@@ -21,6 +22,7 @@ const AdminPage = () => {
   const [editing, setEditing] = useState<string | null>(null);
   const [editPassword, setEditPassword] = useState("");
   const [editPages, setEditPages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchUsers = async () => {
     const res = await fetch("/api/users");
@@ -43,6 +45,7 @@ const AdminPage = () => {
   }, []);
 
   const createUser = async () => {
+    setLoading(true);
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -58,10 +61,12 @@ const AdminPage = () => {
       const data = await res.json();
       setMessage(data.error || "Failed");
     }
+    setLoading(false);
   };
 
   const updateUser = async () => {
     if (!editing) return;
+    setLoading(true);
     const res = await fetch("/api/users", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -77,10 +82,12 @@ const AdminPage = () => {
       const data = await res.json();
       setMessage(data.error || "Failed");
     }
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
+      <OverlayLoader show={loading} text="Loading..." />
       <Header />
       <Wrapper className="py-10 max-w-xl space-y-4">
         <h2 className="text-xl font-medium">Create User</h2>
@@ -107,7 +114,7 @@ const AdminPage = () => {
             onChange={(opts) => setSelected(opts.map((o) => o.value as string))}
           />
         )}
-        <Button onClick={createUser}>Create User</Button>
+        <Button onClick={createUser} disabled={loading}>Create User</Button>
         {message && <p>{message}</p>}
         <hr className="my-4" />
         <h2 className="text-xl font-medium">Users</h2>
@@ -137,7 +144,7 @@ const AdminPage = () => {
                     />
                   )}
                   <div className="flex gap-2">
-                    <Button onClick={updateUser}>Save</Button>
+                    <Button onClick={updateUser} disabled={loading}>Save</Button>
                     <Button
                       variant="secondary"
                       onClick={() => {

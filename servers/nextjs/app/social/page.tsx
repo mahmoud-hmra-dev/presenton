@@ -9,6 +9,7 @@ import ReactSelect from "react-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { OverlayLoader } from "@/components/ui/overlay-loader";
 
 interface PageInfo {
   id: string;
@@ -27,6 +28,7 @@ export default function SocialPage() {
   const [manualCaption, setManualCaption] = useState("");
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [manualPreview, setManualPreview] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -44,25 +46,33 @@ export default function SocialPage() {
   }, [allowedPages]);
 
   const generate = async () => {
+    setLoading(true);
     const form = new FormData();
     if (text) form.append("text", text);
-    const res = await fetch("/api/v1/social/generate", {
-      method: "POST",
-      body: form,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setCaption(data.content);
-      setImageUrl(data.image_url);
-      const saveBody = new FormData();
-      saveBody.append("caption", data.content);
-      saveBody.append("image_url", data.image_url);
-      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
-      let fetched = data.pages || [];
-      if (allowedPages.length > 0) {
-        fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+    try {
+      const res = await fetch("/api/v1/social/generate", {
+        method: "POST",
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCaption(data.content);
+        setImageUrl(data.image_url);
+        const saveBody = new FormData();
+        saveBody.append("caption", data.content);
+        saveBody.append("image_url", data.image_url);
+        await fetch("/api/v1/social/posts/save", {
+          method: "POST",
+          body: saveBody,
+        });
+        let fetched = data.pages || [];
+        if (allowedPages.length > 0) {
+          fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+        }
+        setPages(fetched);
       }
-      setPages(fetched);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,21 +82,31 @@ export default function SocialPage() {
     body.append("caption", caption);
     body.append("image_url", imageUrl);
     selected.forEach((id) => body.append("page_ids", id));
-    const res = await fetch("/api/v1/social/publish", { method: "POST", body });
-    if (res.ok) alert("Published");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/social/publish", { method: "POST", body });
+      if (res.ok) alert("Published");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const regenerateImage = async () => {
     if (!caption) return;
     const form = new FormData();
     form.append("text", caption);
-    const res = await fetch("/api/v1/social/generate", {
-      method: "POST",
-      body: form,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setImageUrl(data.image_url);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/social/generate", {
+        method: "POST",
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setImageUrl(data.image_url);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -96,13 +116,18 @@ export default function SocialPage() {
     body.append("caption", manualCaption);
     body.append("file", manualFile);
     selected.forEach((id) => body.append("page_ids", id));
-    const res = await fetch("/api/v1/social/publish", { method: "POST", body });
-    if (res.ok) {
-      alert("Published");
-      const saveBody = new FormData();
-      saveBody.append("caption", manualCaption);
-      saveBody.append("file", manualFile);
-      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/social/publish", { method: "POST", body });
+      if (res.ok) {
+        alert("Published");
+        const saveBody = new FormData();
+        saveBody.append("caption", manualCaption);
+        saveBody.append("file", manualFile);
+        await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,6 +142,7 @@ export default function SocialPage() {
 
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
+      <OverlayLoader show={loading} text="Loading..." />
       <Header />
       <Wrapper className="py-10 max-w-2xl">
         <Tabs defaultValue="ai" className="w-full space-y-6">
@@ -130,7 +156,7 @@ export default function SocialPage() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <Button onClick={generate}>Generate</Button>
+            <Button onClick={generate} disabled={loading}>Generate</Button>
             {caption && (
               <div className="space-y-2">
                 <Textarea
@@ -140,7 +166,7 @@ export default function SocialPage() {
                 {imageUrl && (
                   <img src={imageUrl} alt="generated" className="max-w-sm" />
                 )}
-                <Button variant="secondary" onClick={regenerateImage}>
+                <Button variant="secondary" onClick={regenerateImage} disabled={loading}>
                   Regenerate Image
                 </Button>
               </div>
@@ -177,8 +203,8 @@ export default function SocialPage() {
           )}
           {selected.length > 0 && (
             <div className="flex gap-4">
-              <Button onClick={publishAI}>Publish AI Post</Button>
-              <Button onClick={publishManual} variant="secondary">
+              <Button onClick={publishAI} disabled={loading}>Publish AI Post</Button>
+              <Button onClick={publishManual} variant="secondary" disabled={loading}>
                 Publish Manual Post
               </Button>
             </div>
