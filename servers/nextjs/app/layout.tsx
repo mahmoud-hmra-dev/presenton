@@ -47,12 +47,10 @@ const instrument_sans = Instrument_Sans({
 
 
 export const metadata: Metadata = {
-  metadataBase: new URL(),
+  metadataBase: new URL("https://karen.ai.clindoctor.net"),
   title: "Karen Ai",
   description:
     "Karen Ai",
-  keywords: [
-  ],
   openGraph: {
     title: "Karen Ai",
     description:
