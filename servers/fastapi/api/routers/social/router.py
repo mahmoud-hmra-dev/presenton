@@ -147,10 +147,11 @@ def _get_pages():
 def _get_linkedin_pages():
     """Return LinkedIn accounts (pages) via Blotato v2."""
     if not BLOTATO_API_KEY:
-        print("Missing BLOTATO_API_KEY")
         return []
 
-    headers = {"blotato-api-key": "blt_q3OO1TSoSbxg7CJ4eJDk2OyOtMp+NBzcs2BhKaZjXik="}
+    headers = {
+        "blotato-api-key": "blt_HTVoFvTB1z7fflScjlCUuMjoNmiUGwzO7lVHtnC3G6g="  # استخدم الرأس الصحيح بدل Authorization
+    }
 
     try:
         resp = requests.get("https://backend.blotato.com/v2/accounts", headers=headers)
@@ -159,7 +160,7 @@ def _get_linkedin_pages():
 
         if resp.status_code == 200:
             data = resp.json()
-            accounts = data.get("accounts", data)  # Fallback if "accounts" not top-level
+            accounts = data.get("accounts", data)  # fallback if "accounts" is top-level
             linkedin_accounts = [
                 {
                     "id": acc["id"],
@@ -177,6 +178,7 @@ def _get_linkedin_pages():
     raise HTTPException(
         status_code=500, detail="Failed to fetch LinkedIn accounts via Blotato"
     )
+
 
 
 
