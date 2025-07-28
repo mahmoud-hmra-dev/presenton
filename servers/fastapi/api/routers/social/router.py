@@ -260,75 +260,84 @@ async def publish_linkedin(
     page_ids: List[str] = Form(...),
     caption: str = Form(...),
     file: Optional[UploadFile] = File(None),
+    image_url: Optional[str] = Form(None),
 ):
     if not BLOTATO_API_KEY:
-        raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
+        raise HTTPException(status_code=400, detail="API key not set")
 
-    headers = {
-        "blotato-api-key": BLOTATO_API_KEY,
-        "Content-Type": "application/json",
-    }
+    # Step 1: Upload media if file provided or if image_url provided external
+    blotato_media_url: Optional[str] = None
 
-    # Step 1: Upload file to Blotato if provided
-    image_url = None
     if file:
-        upload_resp = requests.post(
-            "https://backend.blotato.com/v2/uploads",
-            headers={"blotato-api-key": BLOTATO_API_KEY},
-            files={"file": (file.filename, await file.read(), file.content_type)},
+        raw = await file.read()
+        b64 = base64.b64encode(raw).decode()
+        data_uri = f"data:{file.content_type};base64,{b64}"
+        payload = {"url": data_uri}
+        resp = requests.post(
+            "https://backend.blotato.com/v2/media",
+            headers={"blotato-api-key": BLOTATO_API_KEY, "Content-Type": "application/json"},
+            data=json.dumps(payload),
         )
-        if upload_resp.status_code == 200:
-            image_url = upload_resp.json().get("url")
+        if resp.status_code == 201:
+            blotato_media_url = resp.json().get("url")
         else:
-            raise HTTPException(status_code=400, detail="Failed to upload media")
+            raise HTTPException(status_code=resp.status_code, detail={"upload_error": resp.text})
 
-    # Step 2: Prepare post content
+    elif image_url:
+        payload = {"url": image_url}
+        resp = requests.post(
+            "https://backend.blotato.com/v2/media",
+            headers={"blotato-api-key": BLOTATO_API_KEY, "Content-Type": "application/json"},
+            data=json.dumps(payload),
+        )
+        if resp.status_code == 201:
+            blotato_media_url = resp.json().get("url")
+        else:
+            raise HTTPException(status_code=resp.status_code, detail={"upload_error": resp.text})
+
+    # Step 2: Prepare content and publish
     results = []
     for combined in page_ids:
-        if ":" not in combined:
-            account_id, page_id = combined, None
-        else:
+        if ":" in combined:
             account_id, page_id = combined.split(":", 1)
+        else:
+            account_id, page_id = combined, None
 
         content = {
             "text": caption,
             "platform": "linkedin",
-            "mediaUrls": [image_url] if image_url else [],
+            "mediaUrls": [blotato_media_url] if blotato_media_url else [],
         }
 
         payload = {
             "post": {
-                "target": {
-                    "targetType": "linkedin",
-                },
-                "content": content,
                 "accountId": account_id,
+                "content": content,
+                "target": {"targetType": "linkedin"},
             }
         }
-
         if page_id:
             payload["post"]["target"]["pageId"] = page_id
 
-        resp = requests.post(
+        post_resp = requests.post(
             "https://backend.blotato.com/v2/posts",
-            headers=headers,
+            headers={"blotato-api-key": BLOTATO_API_KEY, "Content-Type": "application/json"},
             data=json.dumps(payload),
         )
 
         try:
-            j = resp.json()
-        except Exception:
-            j = {"error": resp.text}
+            j = post_resp.json()
+        except:
+            j = {"error": post_resp.text}
 
         results.append({
             "account_id": account_id,
             "page_id": page_id,
-            "status": resp.status_code,
+            "status": post_resp.status_code,
             "response": j,
         })
 
     return {"results": results}
-
 
 
 @social_router.post("/posts/save")
