@@ -262,7 +262,7 @@ async def publish_linkedin(
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
 
     headers = {
-        "Authorization": f"Bearer {BLOTATO_API_KEY}",
+        "blotato-api-key":"blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs=",
         "Content-Type": "application/json",
     }
 
