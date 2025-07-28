@@ -252,22 +252,38 @@ async def publish(
     return {"results": results}
 
 
+from fastapi import UploadFile
+import base64
+
 @social_router.post("/linkedin/publish")
 async def publish_linkedin(
     page_ids: List[str] = Form(...),
     caption: str = Form(...),
-    image_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
 ):
     if not BLOTATO_API_KEY:
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
 
     headers = {
-        "blotato-api-key": "blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs=",
+        "blotato-api-key": BLOTATO_API_KEY,
         "Content-Type": "application/json",
     }
 
-    results = []
+    # Step 1: Upload file to Blotato if provided
+    image_url = None
+    if file:
+        upload_resp = requests.post(
+            "https://backend.blotato.com/v2/uploads",
+            headers={"blotato-api-key": BLOTATO_API_KEY},
+            files={"file": (file.filename, await file.read(), file.content_type)},
+        )
+        if upload_resp.status_code == 200:
+            image_url = upload_resp.json().get("url")
+        else:
+            raise HTTPException(status_code=400, detail="Failed to upload media")
 
+    # Step 2: Prepare post content
+    results = []
     for combined in page_ids:
         if ":" not in combined:
             account_id, page_id = combined, None
@@ -304,16 +320,15 @@ async def publish_linkedin(
         except Exception:
             j = {"error": resp.text}
 
-        results.append(
-            {
-                "account_id": account_id,
-                "page_id": page_id,
-                "status": resp.status_code,
-                "response": j,
-            }
-        )
+        results.append({
+            "account_id": account_id,
+            "page_id": page_id,
+            "status": resp.status_code,
+            "response": j,
+        })
 
     return {"results": results}
+
 
 
 @social_router.post("/posts/save")
