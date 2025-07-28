@@ -47,7 +47,7 @@ const instrument_sans = Instrument_Sans({
 
 
 export const metadata: Metadata = {
-  metadataBase: "",
+  metadataBase: new URL(),
   title: "Karen Ai",
   description:
     "Karen Ai",
