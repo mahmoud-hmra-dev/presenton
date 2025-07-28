@@ -23,6 +23,7 @@ FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
 FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
+LINKEDIN_TOKEN = os.getenv("LINKEDIN_TOKEN")
 
 APP_DATA_DIR = os.getenv("APP_DATA_DIRECTORY", "user_data")
 TOKEN_FILE = os.path.join(APP_DATA_DIR, "facebook_token.txt")
@@ -140,10 +141,47 @@ def _get_pages():
     ]
 
 
+def _get_linkedin_pages():
+    """Return LinkedIn organization pages."""
+    if not LINKEDIN_TOKEN:
+        return []
+    headers = {
+        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+    url = (
+        "https://api.linkedin.com/v2/organizationalEntityAcls"
+        "?q=roleAssignee&role=ADMINISTRATOR"
+    )
+    resp = requests.get(url, headers=headers)
+    if resp.status_code != 200:
+        raise HTTPException(status_code=500, detail="Failed to fetch LinkedIn pages")
+    pages = []
+    for e in resp.json().get("elements", []):
+        urn = e.get("organizationalTarget")
+        if not urn:
+            continue
+        oid = urn.split(":" )[-1]
+        name_resp = requests.get(
+            f"https://api.linkedin.com/v2/organizations/{oid}?projection=(localizedName)",
+            headers=headers,
+        )
+        name = name_resp.json().get("localizedName", oid) if name_resp.status_code == 200 else oid
+        pages.append({"id": oid, "name": name})
+    return pages
+
+
 @social_router.get("/pages")
 async def get_pages():
     """Return available Facebook pages."""
     pages = _get_pages()
+    return JSONResponse({"pages": pages})
+
+
+@social_router.get("/linkedin/pages")
+async def get_linkedin_pages():
+    """Return LinkedIn organization pages."""
+    pages = _get_linkedin_pages()
     return JSONResponse({"pages": pages})
 
 
@@ -200,6 +238,96 @@ async def publish(
             "status": resp.status_code,
             "response": resp.json()
         })
+
+    return {"results": results}
+
+
+def _linkedin_upload_image(author: str, file_bytes: bytes) -> Optional[str]:
+    if not LINKEDIN_TOKEN or not file_bytes:
+        return None
+    headers = {
+        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
+        "X-Restli-Protocol-Version": "2.0.0",
+    }
+    reg_resp = requests.post(
+        "https://api.linkedin.com/v2/assets?action=registerUpload",
+        headers={**headers, "Content-Type": "application/json"},
+        json={
+            "registerUploadRequest": {
+                "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                "owner": author,
+                "serviceRelationships": [
+                    {"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}
+                ],
+            }
+        },
+    )
+    if reg_resp.status_code != 200:
+        return None
+    value = reg_resp.json().get("value", {})
+    upload_mech = value.get("uploadMechanism", {}).get(
+        "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {}
+    )
+    upload_url = upload_mech.get("uploadUrl")
+    asset = value.get("asset")
+    if not upload_url or not asset:
+        return None
+    requests.put(upload_url, headers=headers, data=file_bytes)
+    return asset
+
+
+@social_router.post("/linkedin/publish")
+async def publish_linkedin(
+    page_ids: List[str] = Form(...),
+    caption: str = Form(...),
+    image_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
+    if not LINKEDIN_TOKEN:
+        raise HTTPException(status_code=400, detail="LINKEDIN_TOKEN not set")
+
+    if not image_url and not file:
+        raise HTTPException(status_code=400, detail="Provide image_url or file")
+
+    headers = {
+        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
+        "X-Restli-Protocol-Version": "2.0.0",
+        "Content-Type": "application/json",
+    }
+    file_bytes = await file.read() if file else None
+    if not file_bytes and image_url:
+        try:
+            resp = requests.get(image_url)
+            if resp.status_code == 200:
+                file_bytes = resp.content
+        except Exception:
+            file_bytes = None
+
+    results = []
+    for pid in page_ids:
+        author = f"urn:li:organization:{pid}"
+        asset = _linkedin_upload_image(author, file_bytes) if file_bytes else None
+        payload = {
+            "author": author,
+            "lifecycleState": "PUBLISHED",
+            "specificContent": {
+                "com.linkedin.ugc.ShareContent": {
+                    "shareCommentary": {"text": caption},
+                    "shareMediaCategory": "IMAGE" if asset else "NONE",
+                }
+            },
+            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
+        }
+        if asset:
+            payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
+                {"status": "READY", "media": asset}
+            ]
+        resp = requests.post(
+            "https://api.linkedin.com/v2/ugcPosts",
+            headers=headers,
+            data=json.dumps(payload),
+        )
+        results.append({"page_id": pid, "status": resp.status_code, "response": resp.json()})
 
     return {"results": results}
 
