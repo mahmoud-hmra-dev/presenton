@@ -26,6 +26,28 @@ FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
 BLOTATO_API_KEY = os.getenv("BLOTATO_API_KEY")
 BLOTATO_API_URL = os.getenv("BLOTATO_API_URL", "https://www.blotato.com/api/v1")
 
+# Static LinkedIn pages for posting. These are not fetched from the Blotato API
+# but defined manually based on the provided account information.
+LINKEDIN_PAGES = [
+    {"account_id": "3936", "id": "104013486", "name": "ALAMERA"},
+    {"account_id": "3936", "id": "104012452", "name": "AYWAH"},
+    {"account_id": "3936", "id": "104489076", "name": "NAAM"},
+    {"account_id": "3936", "id": "106816276", "name": "Clinfo1t by ClinGroup"},
+    {"account_id": "3936", "id": "104525101", "name": "LaBadia"},
+    {"account_id": "3936", "id": "104753307", "name": "MONA - Mobile Nursing Ark"},
+    {"account_id": "3936", "id": "104206747", "name": "Clepius, Healthcare Staffing"},
+    {"account_id": "3936", "id": "103862408", "name": "Clinserv"},
+    {"account_id": "3936", "id": "106818196", "name": "ClinPharm by ClinGroup"},
+    {"account_id": "3936", "id": "104250803", "name": "DNCI"},
+    {"account_id": "3936", "id": "4994700", "name": "ClinGroup"},
+    {"account_id": "3936", "id": "106794557", "name": "Konzola by HopeMCF"},
+    {"account_id": "3936", "id": "3329838", "name": "QSI"},
+    {"account_id": "3936", "id": "106795554", "name": "HopeMCF"},
+    {"account_id": "3936", "id": "106795589", "name": "SAMAA.dnci"},
+    {"account_id": "3936", "id": "107402220", "name": "ClinAcademy.fr"},
+    {"account_id": "3936", "id": "107183654", "name": "Sociality.dnci"},
+]
+
 APP_DATA_DIR = os.getenv("APP_DATA_DIRECTORY", "user_data")
 TOKEN_FILE = os.path.join(APP_DATA_DIR, "facebook_token.txt")
 
@@ -145,41 +167,8 @@ def _get_pages():
 
 
 def _get_linkedin_pages():
-    """Return LinkedIn accounts (pages) via Blotato v2."""
-    if not BLOTATO_API_KEY:
-        return []
-
-    headers = {
-        "blotato-api-key": "blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs="  # استخدم الرأس الصحيح بدل Authorization
-    }
-
-    try:
-        resp = requests.get("https://backend.blotato.com/v2/accounts", headers=headers)
-        print("RESPONSE STATUS:", resp.status_code)
-        print("RESPONSE TEXT:", resp.text)
-
-        if resp.status_code == 200:
-            data = resp.json()
-            accounts = data.get("accounts", data)  # fallback if "accounts" is top-level
-            linkedin_accounts = [
-                {
-                    "id": acc["id"],
-                    "name": acc.get("name", "Unnamed"),
-                    "platform": acc.get("platform"),
-                    "type": acc.get("type", "organization")
-                }
-                for acc in accounts if acc.get("platform") == "linkedin"
-            ]
-            return linkedin_accounts
-
-    except Exception as e:
-        print("ERROR while requesting Blotato:", str(e))
-
-    raise HTTPException(
-        status_code=500, detail="Failed to fetch LinkedIn accounts via Blotato"
-    )
-
-
+    """Return the predefined LinkedIn organization pages."""
+    return LINKEDIN_PAGES
 
 
 @social_router.get("/pages")
@@ -265,9 +254,9 @@ async def publish(
 
 @social_router.post("/linkedin/publish")
 async def publish_linkedin(
-    page_ids: List[str] = Form(...),  # يمثل accountId في Blotato
+    page_ids: List[str] = Form(...),
     caption: str = Form(...),
-    image_url: str = Form(...),  # مطلوب حسب بنية API
+    image_url: str = Form(...),
 ):
     if not BLOTATO_API_KEY:
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
@@ -276,30 +265,38 @@ async def publish_linkedin(
 
     headers = {
         "Authorization": f"Bearer {BLOTATO_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     results = []
 
-    for account_id in page_ids:
+    for combined in page_ids:
+        if ":" not in combined:
+            # Fallback for older values where only account_id was provided
+            account_id, page_id = combined, None
+        else:
+            account_id, page_id = combined.split(":", 1)
+
         payload = {
             "post": {
                 "target": {
-                    "targetType": "linkedin"
+                    "targetType": "linkedin",
                 },
                 "content": {
                     "text": caption,
                     "platform": "linkedin",
-                    "mediaUrls": [image_url]
+                    "mediaUrls": [image_url],
                 },
-                "accountId": account_id
+                "accountId": account_id,
             }
         }
+        if page_id:
+            payload["post"]["target"]["pageId"] = page_id
 
         resp = requests.post(
             "https://backend.blotato.com/v2/posts",
             headers=headers,
-            data=json.dumps(payload)
+            data=json.dumps(payload),
         )
 
         try:
@@ -307,11 +304,14 @@ async def publish_linkedin(
         except Exception:
             j = {"error": resp.text}
 
-        results.append({
-            "account_id": account_id,
-            "status": resp.status_code,
-            "response": j
-        })
+        results.append(
+            {
+                "account_id": account_id,
+                "page_id": page_id,
+                "status": resp.status_code,
+                "response": j,
+            }
+        )
 
     return {"results": results}
 

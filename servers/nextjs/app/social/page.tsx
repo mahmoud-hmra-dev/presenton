@@ -16,13 +16,17 @@ interface PageInfo {
   name: string;
 }
 
+interface LinkedinPageInfo extends PageInfo {
+  accountId: string;
+}
+
 export default function SocialPage() {
   const [text, setText] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [linkedinPages, setLinkedinPages] = useState<PageInfo[]>([]);
+  const [linkedinPages, setLinkedinPages] = useState<LinkedinPageInfo[]>([]);
   const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
 
   const allowedPages = useSelector((state: RootState) => state.auth.pages);
@@ -39,7 +43,9 @@ export default function SocialPage() {
         const data = await res.json();
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
-          fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+          fetched = fetched.filter((p: PageInfo) =>
+            allowedPages.includes(p.id),
+          );
         }
         setPages(fetched);
       }
@@ -49,7 +55,12 @@ export default function SocialPage() {
       const res = await fetch("/api/v1/social/linkedin/pages");
       if (res.ok) {
         const data = await res.json();
-        setLinkedinPages(data.pages || []);
+        const fetched = (data.pages || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          accountId: p.account_id,
+        }));
+        setLinkedinPages(fetched);
       }
     };
     fetchLinkedinPages();
@@ -77,7 +88,9 @@ export default function SocialPage() {
         });
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
-          fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+          fetched = fetched.filter((p: PageInfo) =>
+            allowedPages.includes(p.id),
+          );
         }
         setPages(fetched);
       }
@@ -102,7 +115,10 @@ export default function SocialPage() {
         body.append("caption", caption);
         body.append("image_url", imageUrl);
         selectedLinkedin.forEach((id) => body.append("page_ids", id));
-        await fetch("/api/v1/social/linkedin/publish", { method: "POST", body });
+        await fetch("/api/v1/social/linkedin/publish", {
+          method: "POST",
+          body,
+        });
       }
       alert("Published");
     } finally {
@@ -145,13 +161,19 @@ export default function SocialPage() {
         body.append("caption", manualCaption);
         body.append("file", manualFile);
         selectedLinkedin.forEach((id) => body.append("page_ids", id));
-        await fetch("/api/v1/social/linkedin/publish", { method: "POST", body });
+        await fetch("/api/v1/social/linkedin/publish", {
+          method: "POST",
+          body,
+        });
       }
       alert("Published");
       const saveBody = new FormData();
       saveBody.append("caption", manualCaption);
       saveBody.append("file", manualFile);
-      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
+      await fetch("/api/v1/social/posts/save", {
+        method: "POST",
+        body: saveBody,
+      });
     } finally {
       setLoading(false);
     }
@@ -182,7 +204,9 @@ export default function SocialPage() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <Button onClick={generate} disabled={loading}>Generate</Button>
+            <Button onClick={generate} disabled={loading}>
+              Generate
+            </Button>
             {caption && (
               <div className="space-y-2">
                 <Textarea
@@ -192,7 +216,11 @@ export default function SocialPage() {
                 {imageUrl && (
                   <img src={imageUrl} alt="generated" className="max-w-sm" />
                 )}
-                <Button variant="secondary" onClick={regenerateImage} disabled={loading}>
+                <Button
+                  variant="secondary"
+                  onClick={regenerateImage}
+                  disabled={loading}
+                >
                   Regenerate Image
                 </Button>
               </div>
@@ -232,10 +260,18 @@ export default function SocialPage() {
               isMulti
               className="basic-multi-select"
               classNamePrefix="select"
-              options={linkedinPages.map((p) => ({ value: p.id, label: p.name }))}
+              options={linkedinPages.map((p) => ({
+                value: `${p.accountId}:${p.id}`,
+                label: p.name,
+              }))}
               value={linkedinPages
-                .filter((p) => selectedLinkedin.includes(p.id))
-                .map((p) => ({ value: p.id, label: p.name }))}
+                .filter((p) =>
+                  selectedLinkedin.includes(`${p.accountId}:${p.id}`),
+                )
+                .map((p) => ({
+                  value: `${p.accountId}:${p.id}`,
+                  label: p.name,
+                }))}
               onChange={(opts) =>
                 setSelectedLinkedin(opts.map((o) => o.value as string))
               }
@@ -243,8 +279,14 @@ export default function SocialPage() {
           )}
           {selected.length + selectedLinkedin.length > 0 && (
             <div className="flex gap-4">
-              <Button onClick={publishAI} disabled={loading}>Publish AI Post</Button>
-              <Button onClick={publishManual} variant="secondary" disabled={loading}>
+              <Button onClick={publishAI} disabled={loading}>
+                Publish AI Post
+              </Button>
+              <Button
+                onClick={publishManual}
+                variant="secondary"
+                disabled={loading}
+              >
                 Publish Manual Post
               </Button>
             </div>
