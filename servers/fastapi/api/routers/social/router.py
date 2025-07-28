@@ -23,7 +23,8 @@ FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
 FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
-LINKEDIN_TOKEN = os.getenv("LINKEDIN_TOKEN")
+BLOTATO_API_KEY = os.getenv("BLOTATO_API_KEY")
+BLOTATO_API_URL = os.getenv("BLOTATO_API_URL", "https://www.blotato.com/api/v1")
 
 APP_DATA_DIR = os.getenv("APP_DATA_DIRECTORY", "user_data")
 TOKEN_FILE = os.path.join(APP_DATA_DIR, "facebook_token.txt")
@@ -86,7 +87,9 @@ def extract_json_block(text: str) -> dict:
             raise ValueError("No JSON object found in LLM response")
         return json.loads(match.group(0))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse LLM response: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to parse LLM response: {str(e)}"
+        )
 
 
 async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
@@ -94,7 +97,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
         "You are an AI social media content creator. "
         "Your task is to create engaging and SEO-optimized social media content (200-500 characters) "
         "and generate a detailed image prompt. "
-        "Respond ONLY with a JSON object like {\"content\": \"...\", \"image_prompt\": \"...\"}. "
+        'Respond ONLY with a JSON object like {"content": "...", "image_prompt": "..."}. '
         "No explanation. No extra text."
     )
     resp = await client.chat.completions.create(
@@ -142,33 +145,19 @@ def _get_pages():
 
 
 def _get_linkedin_pages():
-    """Return LinkedIn organization pages."""
-    if not LINKEDIN_TOKEN:
+    """Return LinkedIn organization pages via Blotato."""
+    if not BLOTATO_API_KEY:
         return []
-    headers = {
-        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
-        "X-Restli-Protocol-Version": "2.0.0",
-    }
-    url = (
-        "https://api.linkedin.com/v2/organizationalEntityAcls"
-        "?q=roleAssignee&role=ADMINISTRATOR"
+    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
+    try:
+        resp = requests.get(f"{BLOTATO_API_URL}/linkedin/pages", headers=headers)
+        if resp.status_code == 200:
+            return resp.json().get("pages", [])
+    except Exception:
+        pass
+    raise HTTPException(
+        status_code=500, detail="Failed to fetch LinkedIn pages via Blotato"
     )
-    resp = requests.get(url, headers=headers)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to fetch LinkedIn pages")
-    pages = []
-    for e in resp.json().get("elements", []):
-        urn = e.get("organizationalTarget")
-        if not urn:
-            continue
-        oid = urn.split(":" )[-1]
-        name_resp = requests.get(
-            f"https://api.linkedin.com/v2/organizations/{oid}?projection=(localizedName)",
-            headers=headers,
-        )
-        name = name_resp.json().get("localizedName", oid) if name_resp.status_code == 200 else oid
-        pages.append({"id": oid, "name": name})
-    return pages
 
 
 @social_router.get("/pages")
@@ -186,7 +175,9 @@ async def get_linkedin_pages():
 
 
 @social_router.post("/generate")
-async def generate(text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)):
+async def generate(
+    text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)
+):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
     client = AsyncOpenAI()
@@ -217,63 +208,37 @@ async def publish(
     file_bytes = await file.read() if file else None
 
     for pid in page_ids:
-        page_token = next((p["access_token"] for p in all_pages if p["id"] == pid), None)
+        page_token = next(
+            (p["access_token"] for p in all_pages if p["id"] == pid), None
+        )
         if not page_token:
-            results.append({"page_id": pid, "status": 403, "error": "Page token not found"})
+            results.append(
+                {"page_id": pid, "status": 403, "error": "Page token not found"}
+            )
             continue
 
         if file_bytes:
             resp = requests.post(
                 f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
                 data={"message": caption, "access_token": page_token},
-                files={"source": (file.filename, file_bytes, file.content_type or "image/jpeg")},
+                files={
+                    "source": (
+                        file.filename,
+                        file_bytes,
+                        file.content_type or "image/jpeg",
+                    )
+                },
             )
         else:
             resp = requests.post(
                 f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
                 data={"url": image_url, "message": caption, "access_token": page_token},
             )
-        results.append({
-            "page_id": pid,
-            "status": resp.status_code,
-            "response": resp.json()
-        })
+        results.append(
+            {"page_id": pid, "status": resp.status_code, "response": resp.json()}
+        )
 
     return {"results": results}
-
-
-def _linkedin_upload_image(author: str, file_bytes: bytes) -> Optional[str]:
-    if not LINKEDIN_TOKEN or not file_bytes:
-        return None
-    headers = {
-        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
-        "X-Restli-Protocol-Version": "2.0.0",
-    }
-    reg_resp = requests.post(
-        "https://api.linkedin.com/v2/assets?action=registerUpload",
-        headers={**headers, "Content-Type": "application/json"},
-        json={
-            "registerUploadRequest": {
-                "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
-                "owner": author,
-                "serviceRelationships": [
-                    {"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}
-                ],
-            }
-        },
-    )
-    if reg_resp.status_code != 200:
-        return None
-    value = reg_resp.json().get("value", {})
-    upload_mech = value.get("uploadMechanism", {}).get(
-        "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {}
-    )
-    upload_url = upload_mech.get("uploadUrl")
-    asset = value.get("asset")
-    if not upload_url or not asset:
-        return None
-    requests.put(upload_url, headers=headers, data=file_bytes)
-    return asset
 
 
 @social_router.post("/linkedin/publish")
@@ -283,51 +248,35 @@ async def publish_linkedin(
     image_url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
 ):
-    if not LINKEDIN_TOKEN:
-        raise HTTPException(status_code=400, detail="LINKEDIN_TOKEN not set")
+    if not BLOTATO_API_KEY:
+        raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
 
     if not image_url and not file:
         raise HTTPException(status_code=400, detail="Provide image_url or file")
 
-    headers = {
-        "Authorization": f"Bearer {LINKEDIN_TOKEN}",
-        "X-Restli-Protocol-Version": "2.0.0",
-        "Content-Type": "application/json",
-    }
+    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
     file_bytes = await file.read() if file else None
-    if not file_bytes and image_url:
-        try:
-            resp = requests.get(image_url)
-            if resp.status_code == 200:
-                file_bytes = resp.content
-        except Exception:
-            file_bytes = None
-
     results = []
     for pid in page_ids:
-        author = f"urn:li:organization:{pid}"
-        asset = _linkedin_upload_image(author, file_bytes) if file_bytes else None
-        payload = {
-            "author": author,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {"text": caption},
-                    "shareMediaCategory": "IMAGE" if asset else "NONE",
-                }
-            },
-            "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
-        }
-        if asset:
-            payload["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
-                {"status": "READY", "media": asset}
-            ]
+        data = {"page_id": pid, "caption": caption}
+        files = None
+        if file_bytes:
+            files = {
+                "file": (file.filename, file_bytes, file.content_type or "image/jpeg")
+            }
+        elif image_url:
+            data["image_url"] = image_url
         resp = requests.post(
-            "https://api.linkedin.com/v2/ugcPosts",
+            f"{BLOTATO_API_URL}/linkedin/publish",
             headers=headers,
-            data=json.dumps(payload),
+            data=data,
+            files=files,
         )
-        results.append({"page_id": pid, "status": resp.status_code, "response": resp.json()})
+        try:
+            j = resp.json()
+        except Exception:
+            j = {"error": resp.text}
+        results.append({"page_id": pid, "status": resp.status_code, "response": j})
 
     return {"results": results}
 
@@ -341,11 +290,7 @@ async def save_post(
     path = None
     if file:
         os.makedirs(os.path.join(APP_DATA_DIR, "posts"), exist_ok=True)
-        path = os.path.join(
-            APP_DATA_DIR,
-            "posts",
-            f"{uuid.uuid4()}_{file.filename}"
-        )
+        path = os.path.join(APP_DATA_DIR, "posts", f"{uuid.uuid4()}_{file.filename}")
         with open(path, "wb") as f:
             f.write(await file.read())
 
