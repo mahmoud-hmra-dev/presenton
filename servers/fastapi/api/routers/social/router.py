@@ -147,15 +147,19 @@ def _get_pages():
 def _get_linkedin_pages():
     """Return LinkedIn accounts (pages) via Blotato v2."""
     if not BLOTATO_API_KEY:
+        print("Missing BLOTATO_API_KEY")
         return []
 
     headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
 
     try:
         resp = requests.get("https://backend.blotato.com/v2/accounts", headers=headers)
+        print("RESPONSE STATUS:", resp.status_code)
+        print("RESPONSE TEXT:", resp.text)
+
         if resp.status_code == 200:
-            accounts = resp.json().get("accounts", [])
-            # Filter only LinkedIn accounts
+            data = resp.json()
+            accounts = data.get("accounts", data)  # Fallback if "accounts" not top-level
             linkedin_accounts = [
                 {
                     "id": acc["id"],
@@ -166,12 +170,14 @@ def _get_linkedin_pages():
                 for acc in accounts if acc.get("platform") == "linkedin"
             ]
             return linkedin_accounts
-    except Exception:
-        pass
+
+    except Exception as e:
+        print("ERROR while requesting Blotato:", str(e))
 
     raise HTTPException(
         status_code=500, detail="Failed to fetch LinkedIn accounts via Blotato"
     )
+
 
 
 @social_router.get("/pages")
