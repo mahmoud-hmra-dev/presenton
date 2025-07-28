@@ -262,7 +262,7 @@ async def publish_linkedin(
         raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
 
     headers = {
-        "blotato-api-key":"blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs=",
+        "blotato-api-key": "blt_TN5i48zFcvDiWUwCMbjq1upD+JVuDRAo/S/FgPbELMs=",
         "Content-Type": "application/json",
     }
 
@@ -270,7 +270,6 @@ async def publish_linkedin(
 
     for combined in page_ids:
         if ":" not in combined:
-            # Fallback for older values where only account_id was provided
             account_id, page_id = combined, None
         else:
             account_id, page_id = combined.split(":", 1)
@@ -278,9 +277,8 @@ async def publish_linkedin(
         content = {
             "text": caption,
             "platform": "linkedin",
+            "mediaUrls": [image_url] if image_url else [],
         }
-        if image_url:
-            content["mediaUrls"] = [image_url]
 
         payload = {
             "post": {
@@ -291,6 +289,7 @@ async def publish_linkedin(
                 "accountId": account_id,
             }
         }
+
         if page_id:
             payload["post"]["target"]["pageId"] = page_id
 
