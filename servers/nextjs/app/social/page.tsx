@@ -22,6 +22,8 @@ export default function SocialPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [linkedinPages, setLinkedinPages] = useState<PageInfo[]>([]);
+  const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
 
   const allowedPages = useSelector((state: RootState) => state.auth.pages);
 
@@ -43,6 +45,14 @@ export default function SocialPage() {
       }
     };
     fetchPages();
+    const fetchLinkedinPages = async () => {
+      const res = await fetch("/api/v1/social/linkedin/pages");
+      if (res.ok) {
+        const data = await res.json();
+        setLinkedinPages(data.pages || []);
+      }
+    };
+    fetchLinkedinPages();
   }, [allowedPages]);
 
   const generate = async () => {
@@ -78,14 +88,23 @@ export default function SocialPage() {
 
   const publishAI = async () => {
     if (!caption || !imageUrl) return;
-    const body = new FormData();
-    body.append("caption", caption);
-    body.append("image_url", imageUrl);
-    selected.forEach((id) => body.append("page_ids", id));
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/social/publish", { method: "POST", body });
-      if (res.ok) alert("Published");
+      if (selected.length > 0) {
+        const body = new FormData();
+        body.append("caption", caption);
+        body.append("image_url", imageUrl);
+        selected.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/publish", { method: "POST", body });
+      }
+      if (selectedLinkedin.length > 0) {
+        const body = new FormData();
+        body.append("caption", caption);
+        body.append("image_url", imageUrl);
+        selectedLinkedin.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/linkedin/publish", { method: "POST", body });
+      }
+      alert("Published");
     } finally {
       setLoading(false);
     }
@@ -112,20 +131,27 @@ export default function SocialPage() {
 
   const publishManual = async () => {
     if (!manualCaption || !manualFile) return;
-    const body = new FormData();
-    body.append("caption", manualCaption);
-    body.append("file", manualFile);
-    selected.forEach((id) => body.append("page_ids", id));
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/social/publish", { method: "POST", body });
-      if (res.ok) {
-        alert("Published");
-        const saveBody = new FormData();
-        saveBody.append("caption", manualCaption);
-        saveBody.append("file", manualFile);
-        await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
+      if (selected.length > 0) {
+        const body = new FormData();
+        body.append("caption", manualCaption);
+        body.append("file", manualFile);
+        selected.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/publish", { method: "POST", body });
       }
+      if (selectedLinkedin.length > 0) {
+        const body = new FormData();
+        body.append("caption", manualCaption);
+        body.append("file", manualFile);
+        selectedLinkedin.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/linkedin/publish", { method: "POST", body });
+      }
+      alert("Published");
+      const saveBody = new FormData();
+      saveBody.append("caption", manualCaption);
+      saveBody.append("file", manualFile);
+      await fetch("/api/v1/social/posts/save", { method: "POST", body: saveBody });
     } finally {
       setLoading(false);
     }
@@ -201,7 +227,21 @@ export default function SocialPage() {
               }
             />
           )}
-          {selected.length > 0 && (
+          {linkedinPages.length > 0 && (
+            <ReactSelect
+              isMulti
+              className="basic-multi-select"
+              classNamePrefix="select"
+              options={linkedinPages.map((p) => ({ value: p.id, label: p.name }))}
+              value={linkedinPages
+                .filter((p) => selectedLinkedin.includes(p.id))
+                .map((p) => ({ value: p.id, label: p.name }))}
+              onChange={(opts) =>
+                setSelectedLinkedin(opts.map((o) => o.value as string))
+              }
+            />
+          )}
+          {selected.length + selectedLinkedin.length > 0 && (
             <div className="flex gap-4">
               <Button onClick={publishAI} disabled={loading}>Publish AI Post</Button>
               <Button onClick={publishManual} variant="secondary" disabled={loading}>

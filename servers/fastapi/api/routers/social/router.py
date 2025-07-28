@@ -23,6 +23,8 @@ FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
 FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
+BLOTATO_API_KEY = os.getenv("BLOTATO_API_KEY")
+BLOTATO_API_URL = os.getenv("BLOTATO_API_URL", "https://www.blotato.com/api/v1")
 
 APP_DATA_DIR = os.getenv("APP_DATA_DIRECTORY", "user_data")
 TOKEN_FILE = os.path.join(APP_DATA_DIR, "facebook_token.txt")
@@ -85,7 +87,9 @@ def extract_json_block(text: str) -> dict:
             raise ValueError("No JSON object found in LLM response")
         return json.loads(match.group(0))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to parse LLM response: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to parse LLM response: {str(e)}"
+        )
 
 
 async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
@@ -93,7 +97,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
         "You are an AI social media content creator. "
         "Your task is to create engaging and SEO-optimized social media content (200-500 characters) "
         "and generate a detailed image prompt. "
-        "Respond ONLY with a JSON object like {\"content\": \"...\", \"image_prompt\": \"...\"}. "
+        'Respond ONLY with a JSON object like {"content": "...", "image_prompt": "..."}. '
         "No explanation. No extra text."
     )
     resp = await client.chat.completions.create(
@@ -140,6 +144,22 @@ def _get_pages():
     ]
 
 
+def _get_linkedin_pages():
+    """Return LinkedIn organization pages via Blotato."""
+    if not BLOTATO_API_KEY:
+        return []
+    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
+    try:
+        resp = requests.get(f"{BLOTATO_API_URL}/linkedin/pages", headers=headers)
+        if resp.status_code == 200:
+            return resp.json().get("pages", [])
+    except Exception:
+        pass
+    raise HTTPException(
+        status_code=500, detail="Failed to fetch LinkedIn pages via Blotato"
+    )
+
+
 @social_router.get("/pages")
 async def get_pages():
     """Return available Facebook pages."""
@@ -147,8 +167,17 @@ async def get_pages():
     return JSONResponse({"pages": pages})
 
 
+@social_router.get("/linkedin/pages")
+async def get_linkedin_pages():
+    """Return LinkedIn organization pages."""
+    pages = _get_linkedin_pages()
+    return JSONResponse({"pages": pages})
+
+
 @social_router.post("/generate")
-async def generate(text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)):
+async def generate(
+    text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)
+):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
     client = AsyncOpenAI()
@@ -179,27 +208,75 @@ async def publish(
     file_bytes = await file.read() if file else None
 
     for pid in page_ids:
-        page_token = next((p["access_token"] for p in all_pages if p["id"] == pid), None)
+        page_token = next(
+            (p["access_token"] for p in all_pages if p["id"] == pid), None
+        )
         if not page_token:
-            results.append({"page_id": pid, "status": 403, "error": "Page token not found"})
+            results.append(
+                {"page_id": pid, "status": 403, "error": "Page token not found"}
+            )
             continue
 
         if file_bytes:
             resp = requests.post(
                 f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
                 data={"message": caption, "access_token": page_token},
-                files={"source": (file.filename, file_bytes, file.content_type or "image/jpeg")},
+                files={
+                    "source": (
+                        file.filename,
+                        file_bytes,
+                        file.content_type or "image/jpeg",
+                    )
+                },
             )
         else:
             resp = requests.post(
                 f"https://graph.facebook.com/{FACEBOOK_GRAPH_VERSION}/{pid}/photos",
                 data={"url": image_url, "message": caption, "access_token": page_token},
             )
-        results.append({
-            "page_id": pid,
-            "status": resp.status_code,
-            "response": resp.json()
-        })
+        results.append(
+            {"page_id": pid, "status": resp.status_code, "response": resp.json()}
+        )
+
+    return {"results": results}
+
+
+@social_router.post("/linkedin/publish")
+async def publish_linkedin(
+    page_ids: List[str] = Form(...),
+    caption: str = Form(...),
+    image_url: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+):
+    if not BLOTATO_API_KEY:
+        raise HTTPException(status_code=400, detail="BLOTATO_API_KEY not set")
+
+    if not image_url and not file:
+        raise HTTPException(status_code=400, detail="Provide image_url or file")
+
+    headers = {"Authorization": f"Bearer {BLOTATO_API_KEY}"}
+    file_bytes = await file.read() if file else None
+    results = []
+    for pid in page_ids:
+        data = {"page_id": pid, "caption": caption}
+        files = None
+        if file_bytes:
+            files = {
+                "file": (file.filename, file_bytes, file.content_type or "image/jpeg")
+            }
+        elif image_url:
+            data["image_url"] = image_url
+        resp = requests.post(
+            f"{BLOTATO_API_URL}/linkedin/publish",
+            headers=headers,
+            data=data,
+            files=files,
+        )
+        try:
+            j = resp.json()
+        except Exception:
+            j = {"error": resp.text}
+        results.append({"page_id": pid, "status": resp.status_code, "response": j})
 
     return {"results": results}
 
@@ -213,11 +290,7 @@ async def save_post(
     path = None
     if file:
         os.makedirs(os.path.join(APP_DATA_DIR, "posts"), exist_ok=True)
-        path = os.path.join(
-            APP_DATA_DIR,
-            "posts",
-            f"{uuid.uuid4()}_{file.filename}"
-        )
+        path = os.path.join(APP_DATA_DIR, "posts", f"{uuid.uuid4()}_{file.filename}")
         with open(path, "wb") as f:
             f.write(await file.read())
 
