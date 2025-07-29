@@ -373,7 +373,6 @@ class FlyerData(BaseModel):
     prompt: str
     title: Optional[str] = None
     topic: Optional[str] = None
-    steps: Optional[List[dict]] = None
     design: Optional[str] = None
     image_url: Optional[str] = None
 
