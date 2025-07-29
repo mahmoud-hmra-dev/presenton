@@ -9,63 +9,20 @@ import { OverlayLoader } from "@/components/ui/overlay-loader";
 import ReactSelect from "react-select";
 
 export default function FlyerPage() {
-  interface Step {
-    title: string;
-    text: string;
-  }
-
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState("");
-  const [steps, setSteps] = useState<Step[]>([]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [design, setDesign] = useState("cartoon");
   const [loading, setLoading] = useState(false);
 
-
-  const addStep = () => {
-    setSteps([...steps, { title: "", text: "" }]);
-  };
-
-  const removeStep = (index: number) => {
-    setSteps(steps.filter((_, i) => i !== index));
-  };
-
-  const updateStep = (index: number, key: keyof Step, value: string) => {
-    setSteps((prev) => {
-      const copy = [...prev];
-      copy[index] = { ...copy[index], [key]: value };
-      return copy;
-    });
-  };
-
   const buildPrompt = () => {
-    const base = `Create an infographic flyer in a modern, colorful cartoon style with bold black outlines and soft pastel colors (light blue, yellow, pink). Ensure all text is crisp and easy to read.`;
-    const minimalist = `Create a clean minimalist infographic flyer with lots of white space and thin sans-serif fonts. Make the wording sharp and legible.`;
-    const retro = `Create a bold retro style infographic flyer with bright contrasting colors and thick outlines. Use clear readable lettering.`;
+    return `Vertical cartoon-style educational flyer, editorial infographic layout; title in a hand-drawn thought bubble, subtitle below; five numbered sections (1–5) as separate bright color blocks; each block with a short bold title, 1–3 sentence paragraph, and a matching cartoon icon; rounded sans-serif typography; vector-flat shading, bold black outlines (2–4px); pastel sky-blue background; accent colors yellow, coral, red, mint, navy; clean margins, balanced spacing, grid-based composition; bottom contact row with minimal black/navy icons for email, website, LinkedIn; print-ready look, poster.
 
-    const styleMap: Record<string, string> = {
-      cartoon: base,
-      minimalist: minimalist,
-      retro: retro,
-    };
-
-    const stepsContent = steps
-      .map((s, i) => `${i + 1}. ${s.title}: ${s.text}`)
-      .join("\n");
-
-    return `${styleMap[design]}
-The infographic should be titled "${title}" inside a large yellow thought bubble at the top, next to cartoon-style icons.
-
-Divide the flyer into ${steps.length} numbered sections with very clear and legible text. Each section should include:
-1. A large, colored number inside a circle.
-2. A title for the section.
-3. A short description for each point.
-
-${stepsContent}
-
-Topic: ${topic}
-Use high contrast fonts so all text is easily readable. Make the layout vertical, highly visual, and engaging for social media or print.`;
+TEXT OVERLAY (layout zones for readable text):
+Title: ${title}
+Subtitle: ${topic}
+Contact: ${text}`;
   };
 
   const generate = async () => {
@@ -88,7 +45,6 @@ Use high contrast fonts so all text is easily readable. Make the layout vertical
             prompt,
             title,
             topic,
-            steps,
             design,
             image_url: data.image_url,
           }),
@@ -99,69 +55,46 @@ Use high contrast fonts so all text is easily readable. Make the layout vertical
     }
   };
 
-
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
       <OverlayLoader show={loading} text="Loading..." />
       <Header />
       <Wrapper className="py-10 max-w-3xl space-y-4">
         <div className="space-y-4 bg-white rounded p-4">
-            <ReactSelect
-              classNamePrefix="select"
-              options={[
-                { value: "cartoon", label: "Cartoon" },
-                { value: "minimalist", label: "Minimalist" },
-                { value: "retro", label: "Retro" },
-              ]}
-              value={{ value: design, label: design.charAt(0).toUpperCase() + design.slice(1) }}
-              onChange={(opt) => setDesign(opt!.value)}
-            />
-            <Input
-              placeholder="Flyer title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <Input
-              placeholder="General topic"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-            />
-            <Textarea
-              placeholder="Flyer description"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            {steps.map((step, idx) => (
-              <div key={idx} className="space-y-2 border-t pt-4">
-                <Input
-                  placeholder={`Step ${idx + 1} Title`}
-                  value={step.title}
-                  onChange={(e) => updateStep(idx, "title", e.target.value)}
-                />
-                <Textarea
-                  placeholder="Step description"
-                  value={step.text}
-                  onChange={(e) => updateStep(idx, "text", e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => removeStep(idx)}
-                >
-                  Remove Step
-                </Button>
-              </div>
-            ))}
-            <Button type="button" variant="secondary" onClick={addStep}>
-              Add Step
-            </Button>
-            <Button onClick={generate} disabled={loading}>Generate Flyer</Button>
-            {imageUrl && (
-              <div className="flex justify-center pt-4">
-                <img src={imageUrl} alt="flyer" className="max-w-sm w-full" />
-              </div>
-            )}
-          </div>
+          <ReactSelect
+            classNamePrefix="select"
+            options={[
+              { value: "cartoon", label: "Cartoon" },
+              { value: "minimalist", label: "Minimalist" },
+              { value: "retro", label: "Retro" },
+            ]}
+            value={{ value: design, label: design.charAt(0).toUpperCase() + design.slice(1) }}
+            onChange={(opt) => setDesign(opt!.value)}
+          />
+          <Input
+            placeholder="Flyer title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <Input
+            placeholder="Subtitle / Topic"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+          />
+          <Textarea
+            placeholder="Contact info (e.g. email, website)"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <Button onClick={generate} disabled={loading}>
+            Generate Flyer
+          </Button>
+          {imageUrl && (
+            <div className="flex justify-center pt-4">
+              <img src={imageUrl} alt="flyer" className="max-w-sm w-full" />
+            </div>
+          )}
+        </div>
       </Wrapper>
     </div>
   );
