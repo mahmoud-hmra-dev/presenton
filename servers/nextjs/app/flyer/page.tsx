@@ -9,23 +9,33 @@ import { OverlayLoader } from "@/components/ui/overlay-loader";
 import ReactSelect from "react-select";
 
 export default function FlyerPage() {
-  const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [topic, setTopic] = useState("");
+  const [description, setDescription] = useState("");
+  const [contact, setContact] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [design, setDesign] = useState("cartoon");
   const [loading, setLoading] = useState(false);
 
   const buildPrompt = () => {
-    return `Vertical cartoon-style educational flyer, editorial infographic layout; title in a hand-drawn thought bubble, subtitle below; five numbered sections (1–5) as separate bright color blocks; each block with a short bold title, 1–3 sentence paragraph, and a matching cartoon icon; rounded sans-serif typography; vector-flat shading, bold black outlines (2–4px); pastel sky-blue background; accent colors yellow, coral, red, mint, navy; clean margins, balanced spacing, grid-based composition; bottom contact row with minimal black/navy icons for email, website, LinkedIn; print-ready look, poster.
+    return `Vertical cartoon-style educational flyer, inspired by modern editorial infographics. Fun, professional layout with colorful hand-drawn feel.
 
-TEXT OVERLAY (layout zones for readable text):
+Title inside a thought bubble, bold and rounded sans-serif font
+Subtitle line directly below the title
+Five separate sections (1–5) as bright color blocks with:
+- Bold short title
+- 1–3 sentence paragraph
+- Matching cartoon-style icon
+
+Color style: pastel sky-blue background, accents of yellow, coral, red, mint, and navy. Clean grid layout with spacing. Poster-ready resolution.
+
+TEXT OVERLAY:
 Title: ${title}
-Subtitle: ${topic}
-Contact: ${text}`;
+Subtitle: ${description}
+Contact: ${contact}`;
   };
 
   const generate = async () => {
+    if (!title || !description) return alert("Please fill in title and description");
     setLoading(true);
     const form = new FormData();
     const prompt = buildPrompt();
@@ -44,7 +54,7 @@ Contact: ${text}`;
           body: JSON.stringify({
             prompt,
             title,
-            topic,
+            topic: description,
             design,
             image_url: data.image_url,
           }),
@@ -72,19 +82,19 @@ Contact: ${text}`;
             onChange={(opt) => setDesign(opt!.value)}
           />
           <Input
-            placeholder="Flyer title"
+            placeholder="Flyer Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
-          <Input
-            placeholder="Subtitle / Topic"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
+          <Textarea
+            placeholder="Subtitle / Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
           <Textarea
-            placeholder="Contact info (e.g. email, website)"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            placeholder="Contact info (optional)"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
           />
           <Button onClick={generate} disabled={loading}>
             Generate Flyer
