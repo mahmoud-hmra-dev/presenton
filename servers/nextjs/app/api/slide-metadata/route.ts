@@ -103,6 +103,17 @@ export async function POST(request: NextRequest) {
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    // Bypass the login screen when the pdf-maker page is loaded by Puppeteer.
+    // The frontend stores authentication state in localStorage, so we prefill
+    // the expected structure before navigation. This mirrors the approach used
+    // by the PDF export route and avoids redirection to the login page during
+    // slide metadata collection.
+    await page.evaluateOnNewDocument(() => {
+      localStorage.setItem(
+        'auth',
+        JSON.stringify({ isLoggedIn: true, pages: [], linkedinPages: [] })
+      );
+    });
 
     try {
       await page.goto(`http://localhost/pdf-maker?id=${id}`, {
