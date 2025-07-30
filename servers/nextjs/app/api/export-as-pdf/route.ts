@@ -16,7 +16,20 @@ export async function POST(req: NextRequest) {
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   const page = await browser.newPage();
-  await page.goto(`http://localhost/pdf-maker?id=${id}`, { waitUntil: 'networkidle0' });
+  // Ensure pages that require authentication don't redirect to the login page
+  // when rendered by Puppeteer. Since the app uses localStorage to keep track
+  // of the authenticated user, we pre-populate it before navigating to the
+  // pdf-maker page so that the StoreInitializer hook detects the user as logged
+  // in.
+  await page.evaluateOnNewDocument(() => {
+    localStorage.setItem(
+      'auth',
+      JSON.stringify({ isLoggedIn: true, pages: [], linkedinPages: [] })
+    );
+  });
+  await page.goto(`http://localhost/pdf-maker?id=${id}`, {
+    waitUntil: 'networkidle0'
+  });
 
   const pdfBuffer = await page.pdf({
     printBackground: true,
