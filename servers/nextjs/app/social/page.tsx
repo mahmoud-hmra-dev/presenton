@@ -306,9 +306,7 @@ export default function SocialPage() {
                   className="w-full border rounded px-2 py-1"
                 >
                   <option value="auto">auto</option>
-                  <option value="strict">strict</option>
-                  <option value="soft">soft</option>
-                  <option value="none">none</option>
+                  <option value="low">low</option>
                 </select>
               </div>
               <div className="col-span-2">
