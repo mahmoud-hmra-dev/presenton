@@ -2,6 +2,7 @@ import json
 import os
 import re
 import uuid
+import httpx
 from typing import List, Optional
 
 import requests
@@ -13,7 +14,7 @@ from sqlmodel import select
 from api.sql_models import FlyerSqlModel, SocialPostSqlModel
 from api.services.database import get_sql_session
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, DefaultHttpxClient
 
 social_router = APIRouter(prefix="/api/v1/social")
 
@@ -203,7 +204,9 @@ async def generate(
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-    client = AsyncOpenAI(request_timeout=180)
+        client = AsyncOpenAI(
+            http_client=DefaultHttpxClient(timeout=httpx.Timeout(180.0))
+        )
     if file:
         text = await _transcribe_audio(file, client)
     data = await _generate_content(text, client)
