@@ -135,7 +135,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
     resp = await client.images.generate(
-        model="dall-e-3",             # أفضل موديل لتصميم الفلايرات
+        model="gpt-image-1",             # أفضل موديل لتصميم الفلايرات
         prompt=prompt,
         n=1,
         size="1024x1792",             # حجم مناسب لطباعة A4 عمودية
