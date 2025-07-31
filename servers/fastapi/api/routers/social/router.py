@@ -138,7 +138,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     return extract_json_block(content)
 
 
-async def _generate_image(summary_text: str, client: AsyncOpenAI) -> str:
+async def _generate_image(summary_text: str, client: AsyncOpenAI, options: dict) -> str:
     flyer_prompt = (
         "Design a vertical marketing flyer based on the following summary. "
         "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
@@ -147,18 +147,30 @@ async def _generate_image(summary_text: str, client: AsyncOpenAI) -> str:
         f"Marketing summary:\n{summary_text}"
     )
 
+    # استخدام الخيارات المرسلة من الفورم مع قيم افتراضية
+    size = options.get("size", "1024x1024")
+    quality = options.get("quality", "medium")
+    output_format = options.get("format", "png")
+    background = options.get("background", "opaque")
+    moderation = options.get("moderation", "auto")
+
     resp = await client.images.generate(
         model="gpt-image-1",
         prompt=flyer_prompt,
         n=1,
-        size="1024x1024",
-        quality="medium",
-        output_format="png",
-        background="opaque",
-        moderation="auto"
+        size=size,
+        quality=quality,
+        output_format=output_format,
+        background=background,
+        moderation=moderation
     )
-    b64 = resp.data[0].b64_json
-    return f"data:image/png;base64,{b64}"
+
+    if output_format == "b64_json":
+        b64 = resp.data[0].b64_json
+        return f"data:image/{output_format};base64,{b64}"
+    else:
+        return resp.data[0].url
+
 
 
 
