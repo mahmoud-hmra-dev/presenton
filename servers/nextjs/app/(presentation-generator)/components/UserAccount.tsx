@@ -46,16 +46,7 @@ const UserAccount = () => {
         role="menuitem"
       >
         <Megaphone className="w-5 h-5" />
-        <span className="text-sm font-medium font-inter">Social</span>
-      </Link>
-      <Link
-        href="/flyer"
-        prefetch={false}
-        className="flex items-center gap-2 px-3 py-2 text-white hover:bg-primary/80 rounded-md transition-colors outline-none"
-        role="menuitem"
-      >
-        <ImageIcon className="w-5 h-5" />
-        <span className="text-sm font-medium font-inter">Flyer</span>
+        <span className="text-sm font-medium font-inter">Post && Flyer</span>
       </Link>
       <Link
         href="/documentation"
