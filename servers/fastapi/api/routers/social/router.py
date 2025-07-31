@@ -2,7 +2,6 @@ import json
 import os
 import re
 import uuid
-import httpx
 from typing import List, Optional
 
 import requests
@@ -14,7 +13,7 @@ from sqlmodel import select
 from api.sql_models import FlyerSqlModel, SocialPostSqlModel
 from api.services.database import get_sql_session
 
-from openai import AsyncOpenAI, DefaultHttpxClient
+from openai import AsyncOpenAI
 
 social_router = APIRouter(prefix="/api/v1/social")
 
@@ -136,21 +135,13 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
     resp = await client.images.generate(
-        model="gpt-image-1",
+        model="gpt-image-1",             # أفضل موديل لتصميم الفلايرات
         prompt=prompt,
         n=1,
-        size="1024x1536",        # الارتفاع العمودي مناسب للفلاير A4
-        quality="high",          # low / medium / high حسب الحاجة
-        output_format="png",     # png أو jpeg أو webp
-        background="opaque",     # opaque / transparent / auto
-        moderation="auto"        # auto أو low
+        size="1024x1792",             # حجم مناسب لطباعة A4 عمودية
+        quality="hd"                  # جودة عالية لإخراج واضح
     )
-    # النتيجة تأتي بصيغة base64
-    b64 = resp.data[0].b64_json
-    # يمكنك حفظها كملف محلي أو تحويلها إلى Data URL
-    url = f"data:image/png;base64,{b64}"
-    return url
-
+    return resp.data[0].url
 
 
 def _get_pages():
@@ -204,9 +195,7 @@ async def generate(
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-        client = AsyncOpenAI(
-            http_client=DefaultHttpxClient(timeout=httpx.Timeout(180.0))
-        )
+    client = AsyncOpenAI()
     if file:
         text = await _transcribe_audio(file, client)
     data = await _generate_content(text, client)
