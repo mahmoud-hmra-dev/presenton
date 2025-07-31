@@ -135,13 +135,21 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
     resp = await client.images.generate(
-        model="gpt-image-1",             # أفضل موديل لتصميم الفلايرات
+        model="gpt-image-1",
         prompt=prompt,
         n=1,
-        size="1024x1792",             # حجم مناسب لطباعة A4 عمودية
-        quality="hd"                  # جودة عالية لإخراج واضح
+        size="1024x1536",        # الارتفاع العمودي مناسب للفلاير A4
+        quality="high",          # low / medium / high حسب الحاجة
+        output_format="png",     # png أو jpeg أو webp
+        background="opaque",     # opaque / transparent / auto
+        moderation="auto"        # auto أو low
     )
-    return resp.data[0].url
+    # النتيجة تأتي بصيغة base64
+    b64 = resp.data[0].b64_json
+    # يمكنك حفظها كملف محلي أو تحويلها إلى Data URL
+    url = f"data:image/png;base64,{b64}"
+    return url
+
 
 
 def _get_pages():
