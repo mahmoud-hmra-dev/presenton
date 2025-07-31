@@ -135,13 +135,17 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
     resp = await client.images.generate(
-        model="dall-e-3",             # أفضل موديل لتصميم الفلايرات
+        model="gpt-image-1",
         prompt=prompt,
         n=1,
-        size="1024x1792",             # حجم مناسب لطباعة A4 عمودية
-        quality="hd"                  # جودة عالية لإخراج واضح
+        size="1024x1024",       # حجم أسهل للمعالجة
+        quality="medium",       # تقليل زمن التنفيذ
+        output_format="png",
+        background="opaque",
+        moderation="auto"
     )
-    return resp.data[0].url
+    b64 = resp.data[0].b64_json
+    return f"data:image/png;base64,{b64}"
 
 
 def _get_pages():
