@@ -11,22 +11,77 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
 
-interface PageInfo {
-  id: string;
-  name: string;
-}
+// ------- إضافة الأمثلة والستايلات والألوان -------
+const STYLES = [
+  {
+    value: "professional",
+    label: "Professional",
+    example: "/flyer-examples/professional.png",
+    description: "Modern, business, clean icons, minimal colors.",
+  },
+  {
+    value: "cartoon",
+    label: "Cartoon",
+    example: "/flyer-examples/cartoon.png",
+    description: "Fun, cartoon-style, bold outlines, bright colors.",
+  },
+  {
+    value: "minimalist",
+    label: "Minimalist",
+    example: "/flyer-examples/minimalist.png",
+    description: "Ultra-minimal, lots of white space, subtle accents.",
+  },
+  {
+    value: "retro",
+    label: "Retro",
+    example: "/flyer-examples/retro.png",
+    description: "80s/90s vintage, textured, muted colors, bold fonts.",
+  },
+  {
+    value: "luxury",
+    label: "Luxury",
+    example: "/flyer-examples/luxury.png",
+    description: "Black/gold, elegant, serif fonts, high-end branding.",
+  },
+  {
+    value: "handdrawn",
+    label: "Handdrawn",
+    example: "/flyer-examples/handdrawn.png",
+    description: "Doodle-style, hand-sketched, playful icons.",
+  },
+  {
+    value: "photorealistic",
+    label: "Photorealistic",
+    example: "/flyer-examples/photorealistic.png",
+    description: "Photo-realistic, magazine-style, high contrast.",
+  },
+  {
+    value: "flat",
+    label: "Flat",
+    example: "/flyer-examples/flat.png",
+    description: "Flat design, solid colors, simple icons, sharp blocks.",
+  },
+];
 
-interface LinkedinPageInfo extends PageInfo {
-  accountId: string;
-}
+const COLORS = [
+  { value: "blue", label: "Blue" },
+  { value: "green", label: "Green" },
+  { value: "red", label: "Red" },
+  { value: "purple", label: "Purple" },
+  { value: "yellow", label: "Yellow" },
+  { value: "orange", label: "Orange" },
+  { value: "black", label: "Black" },
+  { value: "white", label: "White" },
+  { value: "gray", label: "Gray" },
+];
 
 export default function SocialPage() {
   const [text, setText] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [pages, setPages] = useState<PageInfo[]>([]);
+  const [pages, setPages] = useState<any[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [linkedinPages, setLinkedinPages] = useState<LinkedinPageInfo[]>([]);
+  const [linkedinPages, setLinkedinPages] = useState<any[]>([]);
   const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
 
   const allowedPages = useSelector((state: RootState) => state.auth.pages);
@@ -47,6 +102,7 @@ export default function SocialPage() {
   const [moderation, setModeration] = useState("auto");
   const [textAmount, setTextAmount] = useState("medium");
   const [style, setStyle] = useState("professional");
+  const [dominantColor, setDominantColor] = useState("blue");
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -55,9 +111,7 @@ export default function SocialPage() {
         const data = await res.json();
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
-          fetched = fetched.filter((p: PageInfo) =>
-            allowedPages.includes(p.id),
-          );
+          fetched = fetched.filter((p: any) => allowedPages.includes(p.id));
         }
         setPages(fetched);
       }
@@ -95,6 +149,7 @@ export default function SocialPage() {
     form.append("moderation", moderation);
     form.append("text_amount", textAmount);
     form.append("style", style);
+    form.append("dominant_color", dominantColor);
     try {
       const res = await fetch("/api/v1/social/generate", {
         method: "POST",
@@ -113,9 +168,7 @@ export default function SocialPage() {
         });
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
-          fetched = fetched.filter((p: PageInfo) =>
-            allowedPages.includes(p.id),
-          );
+          fetched = fetched.filter((p: any) => allowedPages.includes(p.id));
         }
         setPages(fetched);
       }
@@ -163,6 +216,7 @@ export default function SocialPage() {
     form.append("moderation", moderation);
     form.append("text_amount", textAmount);
     form.append("style", style);
+    form.append("dominant_color", dominantColor);
     setLoading(true);
     try {
       const res = await fetch("/api/v1/social/generate", {
@@ -251,16 +305,15 @@ export default function SocialPage() {
               </div>
               <div>
                 <label className="text-sm">Size</label>
-              <select
-              value={size}
-              onChange={(e) => setSize(e.target.value)}
-              className="w-full border rounded px-2 py-1"
-            >
-              <option value="1024x1024">Square (1024 × 1024)</option>
-              <option value="1024x1536">Portrait (1024 × 1536)</option>
-              <option value="1536x1024">Landscape (1536 × 1024)</option>
-            </select>
-
+                <select
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="1024x1024">Square (1024 × 1024)</option>
+                  <option value="1024x1536">Portrait (1024 × 1536)</option>
+                  <option value="1536x1024">Landscape (1536 × 1024)</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm">Quality</label>
@@ -321,15 +374,43 @@ export default function SocialPage() {
                   <option value="high">high</option>
                 </select>
               </div>
+              {/* ----------- ستايل ودومينانت كلر ----------- */}
               <div className="col-span-2">
                 <label className="text-sm">Style</label>
                 <select
                   value={style}
                   onChange={(e) => setStyle(e.target.value)}
+                  className="w-full border rounded px-2 py-1 mb-2"
+                >
+                  {STYLES.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                {/* وصف وصورة مصغرة */}
+                <div className="flex items-center gap-2 bg-[#F8F8FF] border rounded p-2 mt-1">
+                  <img
+                    src={STYLES.find((s) => s.value === style)?.example}
+                    alt={style}
+                    className="w-12 h-12 rounded border object-cover"
+                    style={{ minWidth: 48 }}
+                  />
+                  <span className="text-xs">{STYLES.find((s) => s.value === style)?.description}</span>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm">Dominant Color</label>
+                <select
+                  value={dominantColor}
+                  onChange={(e) => setDominantColor(e.target.value)}
                   className="w-full border rounded px-2 py-1"
                 >
-                  <option value="professional">Professional</option>
-                  <option value="cartoon">Cartoon</option>
+                  {COLORS.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
