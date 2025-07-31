@@ -129,6 +129,7 @@ export default function SocialPage() {
     }
   };
 
+
   const downloadImage = () => {
     if (!imageUrl) return;
     const a = document.createElement("a");
@@ -137,7 +138,95 @@ export default function SocialPage() {
     a.click();
   };
 
-  // ... keep publishManual, publishAI, regenerateImage, onManualFileChange unchanged
+ const publishAI = async () => {
+    if (!caption || !imageUrl) return;
+    setLoading(true);
+    try {
+      if (selected.length > 0) {
+        const body = new FormData();
+        body.append("caption", caption);
+        body.append("image_url", imageUrl);
+        selected.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/publish", { method: "POST", body });
+      }
+      if (selectedLinkedin.length > 0) {
+        const body = new FormData();
+        body.append("caption", caption);
+        body.append("image_url", imageUrl);
+        selectedLinkedin.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/linkedin/publish", {
+          method: "POST",
+          body,
+        });
+      }
+      alert("Published");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const regenerateImage = async () => {
+    if (!caption) return;
+    const form = new FormData();
+    form.append("text", caption);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/social/generate", {
+        method: "POST",
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setImageUrl(data.image_url);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const publishManual = async () => {
+    if (!manualCaption || !manualFile) return;
+    setLoading(true);
+    try {
+      if (selected.length > 0) {
+        const body = new FormData();
+        body.append("caption", manualCaption);
+        body.append("file", manualFile);
+        selected.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/publish", { method: "POST", body });
+      }
+      if (selectedLinkedin.length > 0) {
+        const body = new FormData();
+        body.append("caption", manualCaption);
+        body.append("file", manualFile);
+        selectedLinkedin.forEach((id) => body.append("page_ids", id));
+        await fetch("/api/v1/social/linkedin/publish", {
+          method: "POST",
+          body,
+        });
+      }
+      alert("Published");
+      const saveBody = new FormData();
+      saveBody.append("caption", manualCaption);
+      saveBody.append("file", manualFile);
+      await fetch("/api/v1/social/posts/save", {
+        method: "POST",
+        body: saveBody,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onManualFileChange = (file: File | null) => {
+    setManualFile(file);
+    if (file) {
+      setManualPreview(URL.createObjectURL(file));
+    } else {
+      setManualPreview(null);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
