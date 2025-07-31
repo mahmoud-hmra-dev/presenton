@@ -18,7 +18,7 @@ from openai import AsyncOpenAI
 social_router = APIRouter(prefix="/api/v1/social")
 
 OPENAI_MODEL = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o")
-IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-1")
+IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "dall-e-3")
 FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v22.0")
 FACEBOOK_TOKEN = os.getenv("FACEBOOK_TOKEN")
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
@@ -135,7 +135,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
 
 async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
     resp = await client.images.generate(
-        model="gpt-image-1",             # أفضل موديل لتصميم الفلايرات
+        model="dall-e-3",             # أفضل موديل لتصميم الفلايرات
         prompt=prompt,
         n=1,
         size="1024x1792",             # حجم مناسب لطباعة A4 عمودية
