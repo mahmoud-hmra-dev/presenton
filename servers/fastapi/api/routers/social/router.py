@@ -265,6 +265,7 @@ async def generate(
     moderation: str = Form("auto"),
     text_amount: str = Form("medium"),
     style: str = Form("professional"),
+    dominant_color: str = Form("blue"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
@@ -287,6 +288,7 @@ async def generate(
         moderation=moderation,
         text_amount=text_amount,
         style=style,
+        dominant_color=dominant_color,
     )
     pages = _get_pages()
 
