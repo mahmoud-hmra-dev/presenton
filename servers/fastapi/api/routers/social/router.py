@@ -150,6 +150,7 @@ async def _generate_image(
     background: str = "opaque",
     moderation: str = "auto",
     text_amount: str = "medium",
+    style: str = "professional",
 ) -> str:
     """Generate an image or flyer using OpenAI's image API."""
 
@@ -160,17 +161,23 @@ async def _generate_image(
     }
     amount_instruction = amount_map.get(text_amount, amount_map["medium"])
 
+    style_map = {
+        "cartoon": "Use a cartoonish style with bold outlines and bright colors.",
+        "professional": "Use a professional style with clean lines and muted colors.",
+    }
+    style_instruction = style_map.get(style, style_map["professional"])
+
     if mode == "flyer":
         prompt = (
             "Design a vertical marketing flyer based on the following summary. "
             "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
             "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
             "Make the flyer easy to read and engaging for both print and digital use. "
-            f"{amount_instruction} "
+            f"{amount_instruction} {style_instruction} "
             f"Marketing summary:\n{prompt_text}"
         )
     else:
-        prompt = f"{prompt_text}. {amount_instruction}"
+        prompt = f"{prompt_text}. {amount_instruction} {style_instruction}"
 
     resp = await client.images.generate(
         model="gpt-image-1",
@@ -181,7 +188,6 @@ async def _generate_image(
         output_format=output_format,
         background=background,
         moderation=moderation,
-        text_amount=text_amount,
     )
     b64 = resp.data[0].b64_json
     return f"data:image/{output_format};base64,{b64}"
@@ -244,6 +250,7 @@ async def generate(
     background: str = Form("opaque"),
     moderation: str = Form("auto"),
     text_amount: str = Form("medium"),
+    style: str = Form("professional"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
@@ -264,6 +271,8 @@ async def generate(
         output_format=output_format,
         background=background,
         moderation=moderation,
+        text_amount=text_amount,
+        style=style,
     )
     pages = _get_pages()
 
