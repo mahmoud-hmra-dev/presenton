@@ -1,7 +1,3 @@
-// ✅ UPDATED FRONTEND
-// - Adds image generation options (size, quality, format, etc.)
-// - Keeps Facebook/LinkedIn publishing logic unchanged
-
 "use client";
 import { useEffect, useState } from "react";
 import Header from "@/app/dashboard/components/Header";
@@ -14,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
+
 interface PageInfo {
   id: string;
   name: string;
@@ -23,53 +20,19 @@ interface LinkedinPageInfo extends PageInfo {
   accountId: string;
 }
 
-const IMAGE_SIZES = [
-  { value: "1024x1024", label: "1024 x 1024 (Square)" },
-  { value: "1024x1536", label: "1024 x 1536 (Portrait)" },
-  { value: "1536x1024", label: "1536 x 1024 (Landscape)" },
-];
-const IMAGE_QUALITIES = [
-  { value: "standard", label: "Standard" },
-  { value: "hd", label: "High Definition (HD)" },
-  { value: "medium", label: "Medium" },
-];
-const IMAGE_FORMATS = [
-  { value: "png", label: "PNG" },
-  { value: "jpeg", label: "JPEG" },
-];
-const BACKGROUND_OPTIONS = [
-  { value: "opaque", label: "Opaque" },
-  { value: "transparent", label: "Transparent" },
-];
-const MODERATION_OPTIONS = [
-  { value: "auto", label: "Auto" },
-  { value: "strict", label: "Strict" },
-  { value: "none", label: "None" },
-];
-const TYPE_OPTIONS = [
-  { value: "flyer", label: "Flyer" },
-  { value: "image", label: "General Image" },
-];
-
 export default function SocialPage() {
   const [text, setText] = useState("");
   const [caption, setCaption] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [imageSettings, setImageSettings] = useState({
-    size: "1024x1024",
-    quality: "medium",
-    format: "png",
-    background: "opaque",
-    moderation: "auto",
-    type: "flyer",
-  });
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [linkedinPages, setLinkedinPages] = useState<LinkedinPageInfo[]>([]);
   const [selectedLinkedin, setSelectedLinkedin] = useState<string[]>([]);
 
   const allowedPages = useSelector((state: RootState) => state.auth.pages);
-  const allowedLinkedinPages = useSelector((state: RootState) => state.auth.linkedinPages);
+  const allowedLinkedinPages = useSelector(
+    (state: RootState) => state.auth.linkedinPages,
+  );
 
   const [manualCaption, setManualCaption] = useState("");
   const [manualFile, setManualFile] = useState<File | null>(null);
@@ -83,7 +46,9 @@ export default function SocialPage() {
         const data = await res.json();
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
-          fetched = fetched.filter((p: PageInfo) => allowedPages.includes(p.id));
+          fetched = fetched.filter((p: PageInfo) =>
+            allowedPages.includes(p.id),
+          );
         }
         setPages(fetched);
       }
@@ -99,7 +64,9 @@ export default function SocialPage() {
           accountId: p.account_id,
         }));
         if (allowedLinkedinPages.length > 0) {
-          fetched = fetched.filter((p: any) => allowedLinkedinPages.includes(`${p.accountId}:${p.id}`));
+          fetched = fetched.filter((p: any) =>
+            allowedLinkedinPages.includes(`${p.accountId}:${p.id}`),
+          );
         }
         setLinkedinPages(fetched);
       }
@@ -111,9 +78,6 @@ export default function SocialPage() {
     setLoading(true);
     const form = new FormData();
     if (text) form.append("text", text);
-    Object.entries(imageSettings).forEach(([key, value]) => {
-      form.append(key, value);
-    });
     try {
       const res = await fetch("/api/v1/social/generate", {
         method: "POST",
@@ -123,22 +87,27 @@ export default function SocialPage() {
         const data = await res.json();
         setCaption(data.content);
         setImageUrl(data.image_url);
+        const saveBody = new FormData();
+        saveBody.append("caption", data.content);
+        saveBody.append("image_url", data.image_url);
+        await fetch("/api/v1/social/posts/save", {
+          method: "POST",
+          body: saveBody,
+        });
+        let fetched = data.pages || [];
+        if (allowedPages.length > 0) {
+          fetched = fetched.filter((p: PageInfo) =>
+            allowedPages.includes(p.id),
+          );
+        }
+        setPages(fetched);
       }
     } finally {
       setLoading(false);
     }
   };
 
-
-  const downloadImage = () => {
-    if (!imageUrl) return;
-    const a = document.createElement("a");
-    a.href = imageUrl;
-    a.download = "generated-flyer.png";
-    a.click();
-  };
-
- const publishAI = async () => {
+  const publishAI = async () => {
     if (!caption || !imageUrl) return;
     setLoading(true);
     try {
@@ -227,7 +196,6 @@ export default function SocialPage() {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-[#E9E8F8]">
       <OverlayLoader show={loading} text="Loading..." />
@@ -239,31 +207,104 @@ export default function SocialPage() {
             <TabsTrigger value="manual">Manual</TabsTrigger>
           </TabsList>
           <TabsContent value="ai" className="space-y-4">
-            <Textarea placeholder="Enter text" value={text} onChange={(e) => setText(e.target.value)} />
-            <div className="grid grid-cols-2 gap-4">
-              <ReactSelect options={IMAGE_SIZES} value={IMAGE_SIZES.find((o) => o.value === imageSettings.size)} onChange={(o) => setImageSettings((s) => ({ ...s, size: o?.value || s.size }))} />
-              <ReactSelect options={IMAGE_QUALITIES} value={IMAGE_QUALITIES.find((o) => o.value === imageSettings.quality)} onChange={(o) => setImageSettings((s) => ({ ...s, quality: o?.value || s.quality }))} />
-              <ReactSelect options={IMAGE_FORMATS} value={IMAGE_FORMATS.find((o) => o.value === imageSettings.format)} onChange={(o) => setImageSettings((s) => ({ ...s, format: o?.value || s.format }))} />
-              <ReactSelect options={BACKGROUND_OPTIONS} value={BACKGROUND_OPTIONS.find((o) => o.value === imageSettings.background)} onChange={(o) => setImageSettings((s) => ({ ...s, background: o?.value || s.background }))} />
-              <ReactSelect options={MODERATION_OPTIONS} value={MODERATION_OPTIONS.find((o) => o.value === imageSettings.moderation)} onChange={(o) => setImageSettings((s) => ({ ...s, moderation: o?.value || s.moderation }))} />
-              <ReactSelect options={TYPE_OPTIONS} value={TYPE_OPTIONS.find((o) => o.value === imageSettings.type)} onChange={(o) => setImageSettings((s) => ({ ...s, type: o?.value || s.type }))} />
-            </div>
-            <Button onClick={generate}>Generate</Button>
+            <Textarea
+              placeholder="Enter text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <Button onClick={generate} disabled={loading}>
+              Generate
+            </Button>
             {caption && (
               <div className="space-y-2">
-                <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} />
+                <Textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                />
                 {imageUrl && (
-                  <div className="space-y-2">
-                    <img src={imageUrl} alt="generated" className="max-w-sm" />
-                    <Button variant="secondary" onClick={downloadImage}>Download</Button>
-                    <Button onClick={regenerateImage} disabled={loading}>Regenerate Image</Button>
-                  </div>
+                  <img src={imageUrl} alt="generated" className="max-w-sm" />
                 )}
+                <Button
+                  variant="secondary"
+                  onClick={regenerateImage}
+                  disabled={loading}
+                >
+                  Regenerate Image
+                </Button>
               </div>
             )}
           </TabsContent>
-
-          {/* Manual, Social posting unchanged */}
+          <TabsContent value="manual" className="space-y-4">
+            <Textarea
+              placeholder="Caption"
+              value={manualCaption}
+              onChange={(e) => setManualCaption(e.target.value)}
+            />
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => onManualFileChange(e.target.files?.[0] || null)}
+            />
+            {manualPreview && (
+              <img src={manualPreview} alt="preview" className="max-w-sm" />
+            )}
+          </TabsContent>
+          {pages.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-medium">Facebook</p>
+              <ReactSelect
+                isMulti
+                className="basic-multi-select"
+                classNamePrefix="select"
+                options={pages.map((p) => ({ value: p.id, label: p.name }))}
+                value={pages
+                  .filter((p) => selected.includes(p.id))
+                  .map((p) => ({ value: p.id, label: p.name }))}
+                onChange={(options) =>
+                  setSelected(options.map((o) => o.value as string))
+                }
+              />
+            </div>
+          )}
+          {linkedinPages.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-medium">LinkedIn</p>
+              <ReactSelect
+                isMulti
+                className="basic-multi-select"
+                classNamePrefix="select"
+                options={linkedinPages.map((p) => ({
+                  value: `${p.accountId}:${p.id}`,
+                  label: p.name,
+                }))}
+                value={linkedinPages
+                  .filter((p) =>
+                    selectedLinkedin.includes(`${p.accountId}:${p.id}`),
+                  )
+                  .map((p) => ({
+                    value: `${p.accountId}:${p.id}`,
+                    label: p.name,
+                  }))}
+                onChange={(opts) =>
+                  setSelectedLinkedin(opts.map((o) => o.value as string))
+                }
+              />
+            </div>
+          )}
+          {selected.length + selectedLinkedin.length > 0 && (
+            <div className="flex gap-4">
+              <Button onClick={publishAI} disabled={loading}>
+                Publish AI Post
+              </Button>
+              <Button
+                onClick={publishManual}
+                variant="secondary"
+                disabled={loading}
+              >
+                Publish Manual Post
+              </Button>
+            </div>
+          )}
         </Tabs>
       </Wrapper>
     </div>
