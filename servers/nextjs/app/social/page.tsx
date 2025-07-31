@@ -14,6 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
+interface PageInfo {
+  id: string;
+  name: string;
+}
+
+interface LinkedinPageInfo extends PageInfo {
+  accountId: string;
+}
 
 const IMAGE_SIZES = [
   { value: "1024x1024", label: "1024 x 1024 (Square)" },
