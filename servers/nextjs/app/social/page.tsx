@@ -46,6 +46,7 @@ export default function SocialPage() {
   const [background, setBackground] = useState("opaque");
   const [moderation, setModeration] = useState("auto");
   const [textAmount, setTextAmount] = useState("medium");
+  const [style, setStyle] = useState("professional");
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -93,6 +94,7 @@ export default function SocialPage() {
     form.append("background", background);
     form.append("moderation", moderation);
     form.append("text_amount", textAmount);
+    form.append("style", style);
     try {
       const res = await fetch("/api/v1/social/generate", {
         method: "POST",
@@ -160,6 +162,7 @@ export default function SocialPage() {
     form.append("background", background);
     form.append("moderation", moderation);
     form.append("text_amount", textAmount);
+    form.append("style", style);
     setLoading(true);
     try {
       const res = await fetch("/api/v1/social/generate", {
@@ -316,6 +319,17 @@ export default function SocialPage() {
                   <option value="low">low</option>
                   <option value="medium">medium</option>
                   <option value="high">high</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm">Style</label>
+                <select
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="professional">Professional</option>
+                  <option value="cartoon">Cartoon</option>
                 </select>
               </div>
             </div>
