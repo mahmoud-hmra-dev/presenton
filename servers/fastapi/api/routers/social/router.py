@@ -138,7 +138,7 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     return extract_json_block(content)
 
 
-async def _generate_image(summary_text: str, client: AsyncOpenAI, options: dict) -> str:
+async def _generate_image(summary_text: str, client: AsyncOpenAI) -> str:
     flyer_prompt = (
         "Design a vertical marketing flyer based on the following summary. "
         "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
@@ -147,30 +147,18 @@ async def _generate_image(summary_text: str, client: AsyncOpenAI, options: dict)
         f"Marketing summary:\n{summary_text}"
     )
 
-    # استخدام الخيارات المرسلة من الفورم مع قيم افتراضية
-    size = options.get("size", "1024x1024")
-    quality = options.get("quality", "medium")
-    output_format = options.get("format", "png")
-    background = options.get("background", "opaque")
-    moderation = options.get("moderation", "auto")
-
     resp = await client.images.generate(
         model="gpt-image-1",
         prompt=flyer_prompt,
         n=1,
-        size=size,
-        quality=quality,
-        output_format=output_format,
-        background=background,
-        moderation=moderation
+        size="1024x1024",
+        quality="medium",
+        output_format="png",
+        background="opaque",
+        moderation="auto"
     )
-
-    if output_format == "b64_json":
-        b64 = resp.data[0].b64_json
-        return f"data:image/{output_format};base64,{b64}"
-    else:
-        return resp.data[0].url
-
+    b64 = resp.data[0].b64_json
+    return f"data:image/png;base64,{b64}"
 
 
 
@@ -221,36 +209,21 @@ async def get_linkedin_pages():
 
 @social_router.post("/generate")
 async def generate(
-    text: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),
-    size: str = Form("1024x1024"),
-    quality: str = Form("medium"),
-    format: str = Form("png"),
-    background: str = Form("opaque"),
-    moderation: str = Form("auto"),
-    type_: str = Form("flyer"),
+    text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-
+    
     client = AsyncOpenAI()
+    
     if file:
         text = await _transcribe_audio(file, client)
 
     data = await _generate_content(text, client)
-    options = {
-        "size": size,
-        "quality": quality,
-        "format": format,
-        "background": background,
-        "moderation": moderation,
-        "type": type_,
-    }
-    image_url = await _generate_image(data["content"], client, options)
+    image_url = await _generate_image(data["content"], client)  # 🔁 ملخص التسويق بدل الـ prompt
     pages = _get_pages()
-
+    
     return {"content": data["content"], "image_url": image_url, "pages": pages}
-
 
 
 
