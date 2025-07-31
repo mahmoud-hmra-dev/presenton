@@ -257,8 +257,8 @@ export default function SocialPage() {
                   className="w-full border rounded px-2 py-1"
                 >
                   <option value="1024x1024">1024x1024</option>
-                  <option value="1792x1024">1792x1024</option>
-                  <option value="1024x1792">1024x1792</option>
+                  <option value="1024x1536">1024x1536</option>
+                  <option value="1536x1024">1536x1024</option>
                 </select>
               </div>
               <div>
