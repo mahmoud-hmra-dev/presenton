@@ -138,19 +138,28 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     return extract_json_block(content)
 
 
-async def _generate_image(prompt: str, client: AsyncOpenAI) -> str:
+async def _generate_image(summary_text: str, client: AsyncOpenAI) -> str:
+    flyer_prompt = (
+        "Design a vertical marketing flyer based on the following summary. "
+        "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
+        "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
+        "Make the flyer easy to read and engaging for both print and digital use. "
+        f"Marketing summary:\n{summary_text}"
+    )
+
     resp = await client.images.generate(
         model="gpt-image-1",
-        prompt=prompt,
+        prompt=flyer_prompt,
         n=1,
-        size="1024x1024",       # حجم أسهل للمعالجة
-        quality="medium",       # تقليل زمن التنفيذ
+        size="1024x1024",
+        quality="medium",
         output_format="png",
         background="opaque",
         moderation="auto"
     )
     b64 = resp.data[0].b64_json
     return f"data:image/png;base64,{b64}"
+
 
 
 def _get_pages():
@@ -204,13 +213,18 @@ async def generate(
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
+    
     client = AsyncOpenAI()
+    
     if file:
         text = await _transcribe_audio(file, client)
+
     data = await _generate_content(text, client)
-    image_url = await _generate_image(data["image_prompt"], client)
+    image_url = await _generate_image(data["content"], client)  # 🔁 ملخص التسويق بدل الـ prompt
     pages = _get_pages()
+    
     return {"content": data["content"], "image_url": image_url, "pages": pages}
+
 
 
 @social_router.post("/publish")
