@@ -269,9 +269,10 @@ export default function SocialPage() {
                   onChange={(e) => setQuality(e.target.value)}
                   className="w-full border rounded px-2 py-1"
                 >
-                  <option value="standard">standard</option>
-                  <option value="hd">hd</option>
+                  <option value="low">low</option>
                   <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="auto">auto</option>
                 </select>
               </div>
               <div>
