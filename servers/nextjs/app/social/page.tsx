@@ -45,6 +45,7 @@ export default function SocialPage() {
   const [outputFormat, setOutputFormat] = useState("png");
   const [background, setBackground] = useState("opaque");
   const [moderation, setModeration] = useState("auto");
+  const [textAmount, setTextAmount] = useState("medium");
 
   useEffect(() => {
     const fetchPages = async () => {
@@ -91,6 +92,7 @@ export default function SocialPage() {
     form.append("output_format", outputFormat);
     form.append("background", background);
     form.append("moderation", moderation);
+    form.append("text_amount", textAmount);
     try {
       const res = await fetch("/api/v1/social/generate", {
         method: "POST",
@@ -157,6 +159,7 @@ export default function SocialPage() {
     form.append("output_format", outputFormat);
     form.append("background", background);
     form.append("moderation", moderation);
+    form.append("text_amount", textAmount);
     setLoading(true);
     try {
       const res = await fetch("/api/v1/social/generate", {
@@ -245,35 +248,75 @@ export default function SocialPage() {
               </div>
               <div>
                 <label className="text-sm">Size</label>
-                <Input value={size} onChange={(e) => setSize(e.target.value)} />
+                <select
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="1024x1024">1024x1024</option>
+                  <option value="1792x1024">1792x1024</option>
+                  <option value="1024x1792">1024x1792</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm">Quality</label>
-                <Input
+                <select
                   value={quality}
                   onChange={(e) => setQuality(e.target.value)}
-                />
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="standard">standard</option>
+                  <option value="hd">hd</option>
+                  <option value="medium">medium</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm">Format</label>
-                <Input
+                <select
                   value={outputFormat}
                   onChange={(e) => setOutputFormat(e.target.value)}
-                />
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="png">png</option>
+                  <option value="jpeg">jpeg</option>
+                  <option value="webp">webp</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm">Background</label>
-                <Input
+                <select
                   value={background}
                   onChange={(e) => setBackground(e.target.value)}
-                />
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="opaque">opaque</option>
+                  <option value="transparent">transparent</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm">Moderation</label>
-                <Input
+                <select
                   value={moderation}
                   onChange={(e) => setModeration(e.target.value)}
-                />
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="auto">auto</option>
+                  <option value="strict">strict</option>
+                  <option value="soft">soft</option>
+                  <option value="none">none</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="text-sm">Text Amount</label>
+                <select
+                  value={textAmount}
+                  onChange={(e) => setTextAmount(e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
               </div>
             </div>
             <Button onClick={generate} disabled={loading}>
