@@ -151,6 +151,7 @@ async def _generate_image(
     moderation: str = "auto",
     text_amount: str = "medium",
     style: str = "professional",
+    dominant_color: str = "blue",  # الجديد هنا
 ) -> str:
     """Generate an image or flyer using OpenAI's image API."""
 
@@ -162,22 +163,34 @@ async def _generate_image(
     amount_instruction = amount_map.get(text_amount, amount_map["medium"])
 
     style_map = {
-        "cartoon": "Use a cartoonish style with bold outlines and bright colors.",
-        "professional": "Use a professional style with clean lines and muted colors.",
+        "professional": "Modern business infographic, clean vector icons, minimal colors, white or light background.",
+        "cartoon": "Fun cartoon-style, bold outlines, bright colors, playful illustrations, big readable text.",
+        "minimalist": "Ultra-minimal layout, lots of white space, thin lines, subtle icons, pastel accent colors.",
+        "retro": "Vintage 80s/90s poster, textured paper, muted colors, geometric shapes, bold typefaces.",
+        "luxury": "Elegant gold accents, black/dark backgrounds, serif fonts, luxury branding, subtle gradients.",
+        "handdrawn": "Hand-drawn doodle style, sketched elements, playful icons, uneven lines, off-white background.",
+        "photorealistic": "Photo-realistic visuals, sharp contrast, magazine-style layout, high-impact imagery.",
+        "flat": "Flat design, solid colors, simple icons, sharp blocks, no gradients or textures.",
     }
     style_instruction = style_map.get(style, style_map["professional"])
+
+    color_instruction = (
+        f"Dominant color: {dominant_color}. Use it for main backgrounds, titles, or highlights."
+        if dominant_color else ""
+    )
 
     if mode == "flyer":
         prompt = (
             "Design a vertical marketing flyer based on the following summary. "
             "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
-            "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
+            f"{style_instruction} {color_instruction} "
+            "Use a modern editorial infographic style, clean icons or illustrations, readable font. "
             "Make the flyer easy to read and engaging for both print and digital use. "
-            f"{amount_instruction} {style_instruction} "
+            f"{amount_instruction} "
             f"Marketing summary:\n{prompt_text}"
         )
     else:
-        prompt = f"{prompt_text}. {amount_instruction} {style_instruction}"
+        prompt = f"{prompt_text}. {style_instruction} {color_instruction} {amount_instruction}"
 
     resp = await client.images.generate(
         model="gpt-image-1",
@@ -191,6 +204,7 @@ async def _generate_image(
     )
     b64 = resp.data[0].b64_json
     return f"data:image/{output_format};base64,{b64}"
+
 
 
 
