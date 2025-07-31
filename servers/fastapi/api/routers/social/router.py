@@ -203,7 +203,7 @@ async def generate(
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-    client = AsyncOpenAI(request_timeout=600)
+    client = AsyncOpenAI(request_timeout=180)
     if file:
         text = await _transcribe_audio(file, client)
     data = await _generate_content(text, client)
