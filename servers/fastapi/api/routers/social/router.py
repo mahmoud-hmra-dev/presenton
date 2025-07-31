@@ -3,6 +3,7 @@ import os
 import re
 import uuid
 from typing import List, Optional
+import base64
 
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -138,27 +139,42 @@ async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     return extract_json_block(content)
 
 
-async def _generate_image(summary_text: str, client: AsyncOpenAI) -> str:
-    flyer_prompt = (
-        "Design a vertical marketing flyer based on the following summary. "
-        "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
-        "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
-        "Make the flyer easy to read and engaging for both print and digital use. "
-        f"Marketing summary:\n{summary_text}"
-    )
+async def _generate_image(
+    prompt_text: str,
+    client: AsyncOpenAI,
+    *,
+    mode: str = "flyer",
+    size: str = "1024x1024",
+    quality: str = "medium",
+    output_format: str = "png",
+    background: str = "opaque",
+    moderation: str = "auto",
+) -> str:
+    """Generate an image or flyer using OpenAI's image API."""
+
+    if mode == "flyer":
+        prompt = (
+            "Design a vertical marketing flyer based on the following summary. "
+            "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
+            "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
+            "Make the flyer easy to read and engaging for both print and digital use. "
+            f"Marketing summary:\n{prompt_text}"
+        )
+    else:
+        prompt = prompt_text
 
     resp = await client.images.generate(
         model="gpt-image-1",
-        prompt=flyer_prompt,
+        prompt=prompt,
         n=1,
-        size="1024x1024",
-        quality="medium",
-        output_format="png",
-        background="opaque",
-        moderation="auto"
+        size=size,
+        quality=quality,
+        output_format=output_format,
+        background=background,
+        moderation=moderation,
     )
     b64 = resp.data[0].b64_json
-    return f"data:image/png;base64,{b64}"
+    return f"data:image/{output_format};base64,{b64}"
 
 
 
@@ -209,20 +225,37 @@ async def get_linkedin_pages():
 
 @social_router.post("/generate")
 async def generate(
-    text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)
+    text: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    mode: str = Form("flyer"),
+    size: str = Form("1024x1024"),
+    quality: str = Form("medium"),
+    output_format: str = Form("png"),
+    background: str = Form("opaque"),
+    moderation: str = Form("auto"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-    
+
     client = AsyncOpenAI()
-    
+
     if file:
         text = await _transcribe_audio(file, client)
 
     data = await _generate_content(text, client)
-    image_url = await _generate_image(data["content"], client)  # 🔁 ملخص التسويق بدل الـ prompt
+    prompt_text = data["content"] if mode == "flyer" else data.get("image_prompt", text)
+    image_url = await _generate_image(
+        prompt_text,
+        client,
+        mode=mode,
+        size=size,
+        quality=quality,
+        output_format=output_format,
+        background=background,
+        moderation=moderation,
+    )
     pages = _get_pages()
-    
+
     return {"content": data["content"], "image_url": image_url, "pages": pages}
 
 
@@ -279,8 +312,7 @@ async def publish(
     return {"results": results}
 
 
-from fastapi import UploadFile
-import base64
+
 
 @social_router.post("/linkedin/publish")
 async def publish_linkedin(
