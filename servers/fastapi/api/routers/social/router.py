@@ -209,21 +209,36 @@ async def get_linkedin_pages():
 
 @social_router.post("/generate")
 async def generate(
-    text: Optional[str] = Form(None), file: Optional[UploadFile] = File(None)
+    text: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    size: str = Form("1024x1024"),
+    quality: str = Form("medium"),
+    format: str = Form("png"),
+    background: str = Form("opaque"),
+    moderation: str = Form("auto"),
+    type_: str = Form("flyer"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
-    
+
     client = AsyncOpenAI()
-    
     if file:
         text = await _transcribe_audio(file, client)
 
     data = await _generate_content(text, client)
-    image_url = await _generate_image(data["content"], client)  # 🔁 ملخص التسويق بدل الـ prompt
+    options = {
+        "size": size,
+        "quality": quality,
+        "format": format,
+        "background": background,
+        "moderation": moderation,
+        "type": type_,
+    }
+    image_url = await _generate_image(data["content"], client, options)
     pages = _get_pages()
-    
+
     return {"content": data["content"], "image_url": image_url, "pages": pages}
+
 
 
 
