@@ -116,12 +116,17 @@ def extract_json_block(text: str) -> dict:
 
 async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     system = (
-        "You are an AI social media content creator. "
-        "Your task is to create engaging and SEO-optimized social media content (200-500 characters) "
-        "and generate a detailed image prompt. "
-        'Respond ONLY with a JSON object like {"content": "...", "image_prompt": "..."}. '
-        "No explanation. No extra text."
+        "You are a professional marketing copywriter for flyers and landing pages. "
+        "Your task is to analyze the provided description of an organization, product, or campaign, "
+        "and generate a clear, persuasive, and logically structured marketing summary in markdown format. "
+        "Follow this structure: introduce the offer and establish credibility, explain how it delivers value (services, benefits, statistics, differentiators), "
+        "then conclude with a motivating one-line summary or call to action. "
+        "The summary must be a single paragraph between 100–150 words. "
+        "Use crisp language, professional tone, and avoid technical jargon unless necessary. "
+        "Output only a JSON object in the form: {\"content\": \"...\", \"image_prompt\": \"...\"}. "
+        "Do not include any extra text or explanation."
     )
+
     resp = await client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
