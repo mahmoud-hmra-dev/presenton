@@ -149,8 +149,16 @@ async def _generate_image(
     output_format: str = "png",
     background: str = "opaque",
     moderation: str = "auto",
+    text_amount: str = "medium",
 ) -> str:
     """Generate an image or flyer using OpenAI's image API."""
+
+    amount_map = {
+        "low": "Use minimal text in the design.",
+        "medium": "Use a moderate amount of text in the design.",
+        "high": "Include a large amount of text in the design.",
+    }
+    amount_instruction = amount_map.get(text_amount, amount_map["medium"])
 
     if mode == "flyer":
         prompt = (
@@ -158,10 +166,11 @@ async def _generate_image(
             "Layout should include a bold title area, clear blocks for key benefits or services, and a footer with contact info. "
             "Use a modern editorial infographic style with clean icons or illustrations, pastel background, and contrasting accent colors. "
             "Make the flyer easy to read and engaging for both print and digital use. "
+            f"{amount_instruction} "
             f"Marketing summary:\n{prompt_text}"
         )
     else:
-        prompt = prompt_text
+        prompt = f"{prompt_text}. {amount_instruction}"
 
     resp = await client.images.generate(
         model="gpt-image-1",
@@ -172,6 +181,7 @@ async def _generate_image(
         output_format=output_format,
         background=background,
         moderation=moderation,
+        text_amount=text_amount,
     )
     b64 = resp.data[0].b64_json
     return f"data:image/{output_format};base64,{b64}"
@@ -233,6 +243,7 @@ async def generate(
     output_format: str = Form("png"),
     background: str = Form("opaque"),
     moderation: str = Form("auto"),
+    text_amount: str = Form("medium"),
 ):
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or audio")
