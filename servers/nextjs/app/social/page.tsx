@@ -39,6 +39,13 @@ export default function SocialPage() {
   const [manualPreview, setManualPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [mode, setMode] = useState("flyer");
+  const [size, setSize] = useState("1024x1024");
+  const [quality, setQuality] = useState("medium");
+  const [outputFormat, setOutputFormat] = useState("png");
+  const [background, setBackground] = useState("opaque");
+  const [moderation, setModeration] = useState("auto");
+
   useEffect(() => {
     const fetchPages = async () => {
       const res = await fetch("/api/v1/social/pages");
@@ -78,6 +85,12 @@ export default function SocialPage() {
     setLoading(true);
     const form = new FormData();
     if (text) form.append("text", text);
+    form.append("mode", mode);
+    form.append("size", size);
+    form.append("quality", quality);
+    form.append("output_format", outputFormat);
+    form.append("background", background);
+    form.append("moderation", moderation);
     try {
       const res = await fetch("/api/v1/social/generate", {
         method: "POST",
@@ -138,6 +151,12 @@ export default function SocialPage() {
     if (!caption) return;
     const form = new FormData();
     form.append("text", caption);
+    form.append("mode", mode);
+    form.append("size", size);
+    form.append("quality", quality);
+    form.append("output_format", outputFormat);
+    form.append("background", background);
+    form.append("moderation", moderation);
     setLoading(true);
     try {
       const res = await fetch("/api/v1/social/generate", {
@@ -212,6 +231,51 @@ export default function SocialPage() {
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-sm">Type</label>
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value)}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="flyer">Flyer</option>
+                  <option value="image">Image</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm">Size</label>
+                <Input value={size} onChange={(e) => setSize(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm">Quality</label>
+                <Input
+                  value={quality}
+                  onChange={(e) => setQuality(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm">Format</label>
+                <Input
+                  value={outputFormat}
+                  onChange={(e) => setOutputFormat(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm">Background</label>
+                <Input
+                  value={background}
+                  onChange={(e) => setBackground(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm">Moderation</label>
+                <Input
+                  value={moderation}
+                  onChange={(e) => setModeration(e.target.value)}
+                />
+              </div>
+            </div>
             <Button onClick={generate} disabled={loading}>
               Generate
             </Button>
@@ -222,15 +286,30 @@ export default function SocialPage() {
                   onChange={(e) => setCaption(e.target.value)}
                 />
                 {imageUrl && (
-                  <img src={imageUrl} alt="generated" className="max-w-sm" />
+                  <div className="space-y-2">
+                    <img src={imageUrl} alt="generated" className="max-w-sm" />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          const a = document.createElement("a");
+                          a.href = imageUrl;
+                          a.download = `image.${outputFormat}`;
+                          a.click();
+                        }}
+                      >
+                        Download Image
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={regenerateImage}
+                        disabled={loading}
+                      >
+                        Regenerate Image
+                      </Button>
+                    </div>
+                  </div>
                 )}
-                <Button
-                  variant="secondary"
-                  onClick={regenerateImage}
-                  disabled={loading}
-                >
-                  Regenerate Image
-                </Button>
               </div>
             )}
           </TabsContent>
