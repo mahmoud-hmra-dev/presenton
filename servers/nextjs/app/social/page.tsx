@@ -251,15 +251,16 @@ export default function SocialPage() {
               </div>
               <div>
                 <label className="text-sm">Size</label>
-                <select
-                  value={size}
-                  onChange={(e) => setSize(e.target.value)}
-                  className="w-full border rounded px-2 py-1"
-                >
-                  <option value="1024x1024">1024x1024</option>
-                  <option value="1024x1536">1024x1536</option>
-                  <option value="1536x1024">1536x1024</option>
-                </select>
+              <select
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              className="w-full border rounded px-2 py-1"
+            >
+              <option value="1024x1024">Square (1024 × 1024)</option>
+              <option value="1024x1536">Portrait (1024 × 1536)</option>
+              <option value="1536x1024">Landscape (1536 × 1024)</option>
+            </select>
+
               </div>
               <div>
                 <label className="text-sm">Quality</label>
