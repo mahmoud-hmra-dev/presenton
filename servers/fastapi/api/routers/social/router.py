@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 import base64
+import asyncio
 
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -330,14 +331,20 @@ async def generate(
 async def generate_week(text: str = Form(...)):
     client = AsyncOpenAI()
     items = await _generate_weekly_posts(text, client)
-    posts = []
-    for item in items:
-        image_url = await _generate_image(
-            item.get("image_prompt", ""),
-            client,
-            mode="image",
-        )
-        posts.append({"caption": item.get("caption", ""), "image_url": image_url})
+
+    async def build_post(item: dict) -> dict:
+        try:
+            image_task = _generate_image(
+                item.get("image_prompt", ""),
+                client,
+                mode="image",
+            )
+            image_url = await asyncio.wait_for(image_task, timeout=60)
+        except Exception:
+            image_url = ""
+        return {"caption": item.get("caption", ""), "image_url": image_url}
+
+    posts = await asyncio.gather(*(build_post(it) for it in items))
     return {"posts": posts}
 
 
