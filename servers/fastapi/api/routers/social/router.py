@@ -2,6 +2,7 @@ import json
 import os
 import re
 import uuid
+from datetime import datetime
 from typing import List, Optional
 import base64
 
@@ -115,6 +116,18 @@ def extract_json_block(text: str) -> dict:
         )
 
 
+def extract_json_array(text: str) -> List[dict]:
+    try:
+        match = re.search(r"\[.*\]", text, re.DOTALL)
+        if not match:
+            raise ValueError("No JSON array found in LLM response")
+        return json.loads(match.group(0))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to parse LLM response: {str(e)}"
+        )
+
+
 async def _generate_content(text: str, client: AsyncOpenAI) -> dict:
     system = (
         "You are a professional marketing copywriter for flyers and landing pages. "
@@ -206,6 +219,24 @@ async def _generate_image(
     return f"data:image/{output_format};base64,{b64}"
 
 
+async def _generate_weekly_posts(text: str, client: AsyncOpenAI) -> List[dict]:
+    system = (
+        "You are a social media assistant. Given a topic or description, "
+        "create exactly seven engaging social media posts for a week. "
+        "Return a JSON array with seven objects each containing 'caption' and 'image_prompt'."
+    )
+
+    resp = await client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": text},
+        ],
+    )
+    content = resp.choices[0].message.content
+    return extract_json_array(content)
+
+
 
 
 def _get_pages():
@@ -293,6 +324,21 @@ async def generate(
     pages = _get_pages()
 
     return {"content": data["content"], "image_url": image_url, "pages": pages}
+
+
+@social_router.post("/generate/week")
+async def generate_week(text: str = Form(...)):
+    client = AsyncOpenAI()
+    items = await _generate_weekly_posts(text, client)
+    posts = []
+    for item in items:
+        image_url = await _generate_image(
+            item.get("image_prompt", ""),
+            client,
+            mode="image",
+        )
+        posts.append({"caption": item.get("caption", ""), "image_url": image_url})
+    return {"posts": posts}
 
 
 
@@ -440,6 +486,7 @@ async def save_post(
     caption: str = Form(...),
     image_url: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    scheduled_for: Optional[str] = Form(None),
 ):
     path = None
     if file:
@@ -448,8 +495,65 @@ async def save_post(
         with open(path, "wb") as f:
             f.write(await file.read())
 
+    scheduled_dt = (
+        datetime.fromisoformat(scheduled_for) if scheduled_for else None
+    )
+
     with get_sql_session() as session:
-        post = SocialPostSqlModel(caption=caption, image_url=image_url, file=path)
+        post = SocialPostSqlModel(
+            caption=caption,
+            image_url=image_url,
+            file=path,
+            scheduled_for=scheduled_dt,
+        )
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+        return post
+
+
+class PostData(BaseModel):
+    caption: str
+    image_url: Optional[str] = None
+    scheduled_for: Optional[datetime] = None
+
+
+class BulkPosts(BaseModel):
+    posts: List[PostData]
+
+
+class PostUpdate(BaseModel):
+    caption: Optional[str] = None
+    image_url: Optional[str] = None
+    scheduled_for: Optional[datetime] = None
+
+
+@social_router.post("/posts/bulk")
+async def save_posts_bulk(data: BulkPosts):
+    with get_sql_session() as session:
+        posts = []
+        for item in data.posts:
+            post = SocialPostSqlModel(
+                caption=item.caption,
+                image_url=item.image_url,
+                scheduled_for=item.scheduled_for,
+            )
+            session.add(post)
+            posts.append(post)
+        session.commit()
+        for p in posts:
+            session.refresh(p)
+    return posts
+
+
+@social_router.put("/posts/{post_id}")
+async def update_post(post_id: str, data: PostUpdate):
+    with get_sql_session() as session:
+        post = session.get(SocialPostSqlModel, post_id)
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        for k, v in data.model_dump(exclude_unset=True).items():
+            setattr(post, k, v)
         session.add(post)
         session.commit()
         session.refresh(post)
