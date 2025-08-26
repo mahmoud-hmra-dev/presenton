@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { OverlayLoader } from "@/components/ui/overlay-loader";
+import Link from "next/link";
 
 // ------- إضافة الأمثلة والستايلات والألوان -------
 const STYLES = [
@@ -279,6 +280,11 @@ export default function SocialPage() {
     <div className="min-h-screen bg-[#E9E8F8]">
       <OverlayLoader show={loading} text="Loading..." />
       <Header />
+      <div className="p-4 text-right">
+        <Link href="/social/calendar" className="text-sm underline">
+          Weekly planner
+        </Link>
+      </div>
       <Wrapper className="py-10 max-w-2xl">
         <Tabs defaultValue="ai" className="w-full space-y-6">
           <TabsList className="w-full flex justify-center mb-4">

@@ -66,6 +66,7 @@ class SocialPostSqlModel(SQLModel, table=True):
     caption: str
     image_url: Optional[str] = None
     file: Optional[str] = None
+    scheduled_for: Optional[datetime] = None
 
 class FlyerSqlModel(SQLModel, table=True):
     id: str = Field(default_factory=get_random_uuid, primary_key=True)
