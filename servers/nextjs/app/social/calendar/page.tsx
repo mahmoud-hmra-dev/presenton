@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/app/dashboard/components/Header";
 import Wrapper from "@/components/Wrapper";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,19 @@ export default function SocialCalendarPage() {
   });
   const [saving, setSaving] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [album, setAlbum] = useState<string[]>([]);
+
+  const fetchAlbum = async () => {
+    const res = await fetch("/api/v1/social/images");
+    if (res.ok) {
+      const data = await res.json();
+      setAlbum(data.images || []);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlbum();
+  }, []);
 
   const generateWeek = async () => {
     if (!topic) return;
@@ -72,6 +85,7 @@ export default function SocialCalendarPage() {
       }),
     });
     setSaving(false);
+    fetchAlbum();
   };
 
   return (
@@ -119,6 +133,24 @@ export default function SocialCalendarPage() {
                     )
                   }
                 />
+                {album.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto py-2">
+                    {album.map((img, i) => (
+                      <img
+                        key={i}
+                        src={img}
+                        onClick={() =>
+                          setPosts((prev) =>
+                            prev.map((p, j) =>
+                              j === idx ? { ...p, imageUrl: img } : p,
+                            ),
+                          )
+                        }
+                        className="w-16 h-16 object-cover rounded cursor-pointer border"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
