@@ -94,6 +94,31 @@ export default function SocialPage() {
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [manualPreview, setManualPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [album, setAlbum] = useState<string[]>([]);
+
+  const fetchAlbum = async () => {
+    const res = await fetch("/api/v1/social/images");
+    if (res.ok) {
+      const data = await res.json();
+      setAlbum(data.images || []);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlbum();
+  }, []);
+
+  const dataUrlToFile = (src: string) => {
+    const arr = src.split(",");
+    const mime = arr[0].match(/:(.*?);/)?[1] || "image/png";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], "image.png", { type: mime });
+  };
 
   const [mode, setMode] = useState("flyer");
   const [size, setSize] = useState("1024x1024");
@@ -167,6 +192,7 @@ export default function SocialPage() {
           method: "POST",
           body: saveBody,
         });
+        fetchAlbum();
         let fetched = data.pages || [];
         if (allowedPages.length > 0) {
           fetched = fetched.filter((p: any) => allowedPages.includes(p.id));
@@ -262,6 +288,7 @@ export default function SocialPage() {
         method: "POST",
         body: saveBody,
       });
+      fetchAlbum();
     } finally {
       setLoading(false);
     }
@@ -529,6 +556,25 @@ export default function SocialPage() {
             </div>
           )}
         </Tabs>
+        {album.length > 0 && (
+          <div className="bg-white p-4 rounded space-y-2">
+            <h3 className="font-semibold">Saved Images</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {album.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  className="rounded cursor-pointer"
+                  onClick={() => {
+                    const file = dataUrlToFile(img);
+                    setManualFile(file);
+                    setManualPreview(img);
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </Wrapper>
     </div>
   );

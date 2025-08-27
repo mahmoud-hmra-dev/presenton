@@ -98,6 +98,23 @@ def _refresh_token(token: str) -> str:
     return token
 
 
+def _save_image_to_album(url: str) -> str:
+    """Download or decode an image and store it in the posts album."""
+    os.makedirs(os.path.join(APP_DATA_DIR, "posts"), exist_ok=True)
+    filename = f"{uuid.uuid4()}.png"
+    path = os.path.join(APP_DATA_DIR, "posts", filename)
+    if url.startswith("data:"):
+        _, b64data = url.split(",", 1)
+        data = base64.b64decode(b64data)
+    else:
+        resp = requests.get(url)
+        resp.raise_for_status()
+        data = resp.content
+    with open(path, "wb") as f:
+        f.write(data)
+    return path
+
+
 async def _transcribe_audio(file: UploadFile, client: AsyncOpenAI) -> str:
     data = await file.read()
     return await client.audio.transcriptions.create(
@@ -501,6 +518,12 @@ async def save_post(
         path = os.path.join(APP_DATA_DIR, "posts", f"{uuid.uuid4()}_{file.filename}")
         with open(path, "wb") as f:
             f.write(await file.read())
+    elif image_url:
+        try:
+            path = _save_image_to_album(image_url)
+            image_url = None
+        except Exception:
+            pass
 
     scheduled_dt = (
         datetime.fromisoformat(scheduled_for) if scheduled_for else None
@@ -540,9 +563,18 @@ async def save_posts_bulk(data: BulkPosts):
     with get_sql_session() as session:
         posts = []
         for item in data.posts:
+            path = None
+            image_url = item.image_url
+            if image_url:
+                try:
+                    path = _save_image_to_album(image_url)
+                    image_url = None
+                except Exception:
+                    pass
             post = SocialPostSqlModel(
                 caption=item.caption,
-                image_url=item.image_url,
+                image_url=image_url,
+                file=path,
                 scheduled_for=item.scheduled_for,
             )
             session.add(post)
@@ -573,6 +605,21 @@ async def get_posts():
         posts = session.exec(select(SocialPostSqlModel)).all()
     posts.sort(key=lambda x: x.created_at, reverse=True)
     return posts
+
+
+@social_router.get("/images")
+async def get_album_images():
+    dir_path = os.path.join(APP_DATA_DIR, "posts")
+    images: List[str] = []
+    if os.path.exists(dir_path):
+        for name in os.listdir(dir_path):
+            try:
+                with open(os.path.join(dir_path, name), "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+                    images.append(f"data:image/png;base64,{b64}")
+            except Exception:
+                continue
+    return {"images": images}
 
 
 class FlyerData(BaseModel):
