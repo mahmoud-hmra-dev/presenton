@@ -4,6 +4,7 @@ import Header from "@/app/dashboard/components/Header";
 import Wrapper from "@/components/Wrapper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ReactSelect from "react-select";
 import * as XLSX from "xlsx";
 
 interface Row {
@@ -15,6 +16,7 @@ interface Row {
   size: string;
   publishDateTime: string;
   imageUrl?: string;
+  selectedPages: string[];
 }
 
 export default function ImportPage() {
@@ -41,6 +43,11 @@ export default function ImportPage() {
     fetchLinkedin();
   }, []);
 
+  const pageOptions = [
+    ...pages.map((p) => ({ value: `facebook:${p.id}`, label: `Facebook: ${p.name}` })),
+    ...linkedinPages.map((p) => ({ value: `linkedin:${p.id}`, label: `LinkedIn: ${p.name}` })),
+  ];
+
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -60,7 +67,12 @@ export default function ImportPage() {
       range: 1,
       defval: "",
     });
-    setRows(json as Row[]);
+    setRows(
+      json.map((r) => ({
+        ...(r as Omit<Row, "selectedPages">),
+        selectedPages: [],
+      })) as Row[],
+    );
   };
 
   const generateImage = async (idx: number) => {
@@ -122,19 +134,28 @@ export default function ImportPage() {
                     <td className="p-2">{row.type}</td>
                     <td className="p-2">{row.size}</td>
                     <td className="p-2">{row.publishDateTime}</td>
-                    <td className="p-2">
-                      <div className="space-y-1">
-                        {pages.map((p) => (
-                          <div key={p.id} className="text-xs">
-                            <input type="checkbox" className="mr-1" />{p.name}
-                          </div>
-                        ))}
-                        {linkedinPages.map((p) => (
-                          <div key={p.id} className="text-xs">
-                            <input type="checkbox" className="mr-1" />{p.name}
-                          </div>
-                        ))}
-                      </div>
+                    <td className="p-2 min-w-[200px]">
+                      <ReactSelect
+                        isMulti
+                        className="basic-multi-select"
+                        classNamePrefix="select"
+                        options={pageOptions}
+                        value={pageOptions.filter((opt) =>
+                          row.selectedPages.includes(opt.value),
+                        )}
+                        onChange={(opts) =>
+                          setRows((prev) =>
+                            prev.map((r, idx) =>
+                              idx === i
+                                ? {
+                                    ...r,
+                                    selectedPages: opts.map((o) => o.value as string),
+                                  }
+                                : r,
+                            ),
+                          )
+                        }
+                      />
                     </td>
                     <td className="p-2 space-y-2">
                       {row.imageUrl ? (
@@ -162,9 +183,14 @@ export default function ImportPage() {
                           </div>
                         </div>
                       ) : (
-                        <Button size="sm" onClick={() => generateImage(i)}>
-                          Generate Image
-                        </Button>
+                        <div className="space-y-2">
+                          <div className="w-32 h-32 bg-gray-100 flex items-center justify-center text-xs text-gray-500 rounded">
+                            No image
+                          </div>
+                          <Button size="sm" onClick={() => generateImage(i)}>
+                            Generate Image
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
