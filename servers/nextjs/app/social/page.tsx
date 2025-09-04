@@ -307,8 +307,14 @@ export default function SocialPage() {
     <div className="min-h-screen bg-[#E9E8F8]">
       <OverlayLoader show={loading} text="Loading..." />
       <Header />
-      <div className="p-4 text-right">
-        <Link href="/social/calendar" className="text-sm underline">
+      <div className="p-4 flex gap-4 justify-end text-sm">
+        <Link href="/social/import" className="underline">
+          Import Excel
+        </Link>
+        <Link href="/social/photos" className="underline">
+          Saved Photos
+        </Link>
+        <Link href="/social/calendar" className="underline">
           Weekly planner
         </Link>
       </div>
