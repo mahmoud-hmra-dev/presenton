@@ -81,30 +81,35 @@ export default function CompanyPlanningPage() {
     extractDataFromText(combined);
   };
 
-  const extractDataFromText = (text: string) => {
-    const catSet = new Set<string>();
-    const serviceSet = new Set<string>();
-    const quotesArr: Quote[] = [];
-    let quoteId = 1;
-    text.split(/\r?\n/).forEach((line) => {
-      const catMatch = line.match(/^Category:\s*(.+)/i);
-      if (catMatch) catSet.add(catMatch[1].trim());
-      const svcMatch = line.match(/^Service:\s*(.+)/i);
-      if (svcMatch) serviceSet.add(svcMatch[1].trim());
-      const quoteMatch = line.match(/^Quote:\s*(.+?)\s*-\s*(.+)/i);
-      if (quoteMatch) {
-        quotesArr.push({
-          id: quoteId++,
-          text: quoteMatch[1].trim(),
-          service: quoteMatch[2].trim(),
-          lastUsed: "",
-        });
-      }
-    });
-    setCategories([...catSet]);
-    setServices([...serviceSet]);
-    if (quotesArr.length) setQuotes(quotesArr);
-  };
+const extractDataFromText = (text: string) => {
+  const catSet = new Set<string>();
+  const serviceSet = new Set<string>();
+  const quotesArr: Quote[] = [];
+  let quoteId = 1;
+
+  text.split(/\r?\n/).forEach((line) => {
+    const catMatch = line.match(/^Category:\s*(.+)/i);
+    if (catMatch) catSet.add(catMatch[1].trim());
+
+    const svcMatch = line.match(/^Service:\s*(.+)/i);
+    if (svcMatch) serviceSet.add(svcMatch[1].trim());
+
+    const quoteMatch = line.match(/^Quote:\s*(.+?)\s*-\s*(.+)/i);
+    if (quoteMatch) {
+      quotesArr.push({
+        id: quoteId++,
+        text: quoteMatch[1].trim(),
+        service: quoteMatch[2].trim(),
+        lastUsed: "",
+      });
+    }
+  });
+
+  setCategories(Array.from(catSet));
+  setServices(Array.from(serviceSet));
+  if (quotesArr.length) setQuotes(quotesArr);
+};
+
 
   const confirmTimeframe = () => {
     const weeks = parseInt(timeframe, 10);
