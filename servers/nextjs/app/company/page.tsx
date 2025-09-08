@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "@/app/dashboard/components/Header";
 import Wrapper from "@/components/Wrapper";
 import { Button } from "@/components/ui/button";
@@ -20,26 +20,16 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
-// Placeholder data for demo purposes. In a full implementation,
-// these would be fetched from the backend after importing documents
-// and processing them for RAG, categories, services, and quotes.
-const companies = [
-  { id: "acme", name: "Acme Corp" },
-  { id: "globex", name: "Globex" },
-];
-
-const categories = ["Marketing", "Sales", "Operations"];
-const services = ["Consulting", "Design", "Development"];
-const quotes = [
-  { id: 1, text: "Excellence is a habit.", service: "Consulting", lastUsed: "" },
-  {
-    id: 2,
-    text: "Design is intelligence made visible.",
-    service: "Design",
-    lastUsed: "2024-01-01 on Facebook",
-  },
-];
+type Quote = { id: number; text: string; service: string; lastUsed: string };
 
 type PlanRow = {
   contentType?: string;
@@ -48,22 +38,79 @@ type PlanRow = {
   quote?: string;
 };
 
-export default function CompanyPlanningPage() {
-  const [selectedCompany, setSelectedCompany] = useState<string>("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [timeframe, setTimeframe] = useState<string>("");
-  const [rows, setRows] = useState<PlanRow[]>([]);
-  const [generated, setGenerated] = useState(false);
+type Draft = {
+  text: string;
+  image: string;
+};
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFiles(Array.from(e.target.files || []));
+type ScheduledPost = PlanRow &
+  Draft & { day: number; status: "scheduled" | "paused" | "published" };
+
+const companies = [
+  { id: "acme", name: "Acme Corp" },
+  { id: "globex", name: "Globex" },
+];
+
+export default function CompanyPlanningPage() {
+  const [selectedCompany, setSelectedCompany] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [services, setServices] = useState<string[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [timeframe, setTimeframe] = useState("");
+  const [timeframeDialogOpen, setTimeframeDialogOpen] = useState(false);
+  const [rows, setRows] = useState<PlanRow[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [generated, setGenerated] = useState(false);
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (selectedCompany) {
+      setTimeframeDialogOpen(true);
+    }
+  }, [selectedCompany]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploaded = Array.from(e.target.files || []);
+    setFiles(uploaded);
+    const contents = await Promise.all(
+      uploaded.map((f) => f.text().catch(() => "")),
+    );
+    const combined = contents.join("\n");
+    extractDataFromText(combined);
   };
 
-  const handleTimeframe = (value: string) => {
-    setTimeframe(value);
-    const weeks = parseInt(value, 10);
+  const extractDataFromText = (text: string) => {
+    const catSet = new Set<string>();
+    const serviceSet = new Set<string>();
+    const quotesArr: Quote[] = [];
+    let quoteId = 1;
+    text.split(/\r?\n/).forEach((line) => {
+      const catMatch = line.match(/^Category:\s*(.+)/i);
+      if (catMatch) catSet.add(catMatch[1].trim());
+      const svcMatch = line.match(/^Service:\s*(.+)/i);
+      if (svcMatch) serviceSet.add(svcMatch[1].trim());
+      const quoteMatch = line.match(/^Quote:\s*(.+?)\s*-\s*(.+)/i);
+      if (quoteMatch) {
+        quotesArr.push({
+          id: quoteId++,
+          text: quoteMatch[1].trim(),
+          service: quoteMatch[2].trim(),
+          lastUsed: "",
+        });
+      }
+    });
+    setCategories([...catSet]);
+    setServices([...serviceSet]);
+    if (quotesArr.length) setQuotes(quotesArr);
+  };
+
+  const confirmTimeframe = () => {
+    const weeks = parseInt(timeframe, 10);
     const days = weeks === 4 ? 28 : weeks * 7;
     setRows(Array.from({ length: days }, () => ({})));
+    setTimeframeDialogOpen(false);
   };
 
   const handleRowChange = (
@@ -76,9 +123,89 @@ export default function CompanyPlanningPage() {
     );
   };
 
+  const generateContentForRow = (row: PlanRow): Draft => ({
+    text: `Draft ${row.contentType || ""} for ${row.service || ""} in ${
+      row.category || ""
+    }. Quote: ${
+      quotes.find((q) => String(q.id) === row.quote)?.text || ""
+    }`,
+    image: "https://via.placeholder.com/300x200.png?text=Image",
+  });
+
   const handleGenerate = () => {
-    // TODO: generate draft content based on plan
+    setDrafts(rows.map(generateContentForRow));
     setGenerated(true);
+  };
+
+  const regenerate = (index: number) => {
+    setDrafts((prev) =>
+      prev.map((d, i) => (i === index ? generateContentForRow(rows[i]) : d)),
+    );
+  };
+
+  const updateDraftText = (index: number, text: string) => {
+    setDrafts((prev) => prev.map((d, i) => (i === index ? { ...d, text } : d)));
+  };
+
+  const handleConfirmSchedule = () => {
+    const scheduled = drafts.map((d, i) => ({
+      ...rows[i],
+      ...d,
+      day: i + 1,
+      status: "scheduled" as const,
+    }));
+    setScheduledPosts(scheduled);
+    setQuotes((prev) =>
+      prev.map((q) =>
+        scheduled.some((p) => p.quote === String(q.id))
+          ? { ...q, lastUsed: new Date().toISOString().split("T")[0] }
+          : q,
+      ),
+    );
+    setConfirmDialogOpen(false);
+    setGenerated(false);
+  };
+
+  const togglePause = (index: number) => {
+    setScheduledPosts((prev) =>
+      prev.map((p, i) =>
+        i === index
+          ? { ...p, status: p.status === "paused" ? "scheduled" : "paused" }
+          : p,
+      ),
+    );
+  };
+
+  const editScheduledText = (index: number, text: string) => {
+    setScheduledPosts((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, text } : p)),
+    );
+  };
+
+  const publishAll = () => {
+    setScheduledPosts((prev) => prev.map((p) => ({ ...p, status: "published" as const })));
+  };
+
+  const exportReport = () => {
+    const report = scheduledPosts
+      .filter((p) => p.status === "published")
+      .map((p) => ({
+        day: p.day,
+        contentType: p.contentType,
+        service: p.service,
+        category: p.category,
+        quote: p.quote,
+        link: p.image,
+      }));
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "monthly-report.json";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -102,18 +229,6 @@ export default function CompanyPlanningPage() {
           {selectedCompany && (
             <div className="space-y-4">
               <Input type="file" multiple onChange={handleFileUpload} />
-              {/* TODO: Use uploaded files to build RAG knowledge base */}
-              <Select onValueChange={handleTimeframe} value={timeframe}>
-                <SelectTrigger className="w-60">
-                  <SelectValue placeholder="Select timeframe" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 week</SelectItem>
-                  <SelectItem value="2">2 weeks</SelectItem>
-                  <SelectItem value="3">3 weeks</SelectItem>
-                  <SelectItem value="4">1 month</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           )}
         </div>
@@ -137,9 +252,7 @@ export default function CompanyPlanningPage() {
                     <TableCell>
                       <Select
                         value={row.contentType}
-                        onValueChange={(v) =>
-                          handleRowChange(i, "contentType", v)
-                        }
+                        onValueChange={(v) => handleRowChange(i, "contentType", v)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue placeholder="Type" />
@@ -173,9 +286,7 @@ export default function CompanyPlanningPage() {
                     <TableCell>
                       <Select
                         value={row.category}
-                        onValueChange={(v) =>
-                          handleRowChange(i, "category", v)
-                        }
+                        onValueChange={(v) => handleRowChange(i, "category", v)}
                       >
                         <SelectTrigger className="w-40">
                           <SelectValue placeholder="Category" />
@@ -215,15 +326,102 @@ export default function CompanyPlanningPage() {
         )}
 
         {generated && (
-          <div className="bg-white p-6 rounded space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Draft content will appear here for review, editing, and scheduling.
-            </p>
-            {/* TODO: Implement content generation, editing, and scheduling */}
+          <div className="bg-white p-6 rounded space-y-4">
+            {drafts.map((draft, i) => (
+              <div key={i} className="border rounded p-4 space-y-2">
+                <p className="font-semibold">Day {i + 1}</p>
+                <img
+                  src={draft.image}
+                  alt="generated"
+                  className="w-60 h-40 object-cover"
+                />
+                <Textarea
+                  value={draft.text}
+                  onChange={(e) => updateDraftText(i, e.target.value)}
+                />
+                <Button variant="secondary" onClick={() => regenerate(i)}>
+                  Regenerate
+                </Button>
+              </div>
+            ))}
+            <Button onClick={() => setConfirmDialogOpen(true)}>
+              Confirm & Schedule
+            </Button>
           </div>
         )}
+
+        {scheduledPosts.length > 0 && (
+          <div className="bg-white p-6 rounded space-y-4">
+            <h3 className="text-lg font-semibold">Scheduled Posts</h3>
+            {scheduledPosts.map((p, i) => (
+              <div key={i} className="border rounded p-4 space-y-2">
+                <p className="font-semibold">
+                  Day {p.day} - {p.contentType}
+                </p>
+                <img
+                  src={p.image}
+                  alt="post"
+                  className="w-60 h-40 object-cover"
+                />
+                {p.status !== "published" && (
+                  <Textarea
+                    value={p.text}
+                    onChange={(e) => editScheduledText(i, e.target.value)}
+                  />
+                )}
+                <p>Status: {p.status}</p>
+                {p.status !== "published" && (
+                  <Button variant="secondary" onClick={() => togglePause(i)}>
+                    {p.status === "paused" ? "Resume" : "Pause"}
+                  </Button>
+                )}
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Button onClick={publishAll}>Publish All</Button>
+              <Button variant="secondary" onClick={exportReport}>
+                Export Monthly Report
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <Dialog open={timeframeDialogOpen} onOpenChange={setTimeframeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Select Timeframe</DialogTitle>
+            </DialogHeader>
+            <Select onValueChange={setTimeframe} value={timeframe}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Timeframe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1 week</SelectItem>
+                <SelectItem value="2">2 weeks</SelectItem>
+                <SelectItem value="3">3 weeks</SelectItem>
+                <SelectItem value="4">1 month</SelectItem>
+              </SelectContent>
+            </Select>
+            <DialogFooter>
+              <Button onClick={confirmTimeframe} disabled={!timeframe}>
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Schedule Posts?</DialogTitle>
+            </DialogHeader>
+            <p>Confirm to schedule generated posts.</p>
+            <DialogFooter>
+              <Button onClick={handleConfirmSchedule}>Confirm</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Wrapper>
     </div>
   );
 }
-
